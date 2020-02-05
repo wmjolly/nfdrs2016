@@ -1,0 +1,47 @@
+#pragma once
+#include <vector>
+#include <iostream>
+#include "NFDR2016StateSizes.h"
+#include "time.h"
+#include "stdio.h"
+using namespace std;
+class LFMCalcState
+{
+public:
+	LFMCalcState();
+	LFMCalcState(const LFMCalcState& rhs);
+	~LFMCalcState();
+
+	bool  ReadState(FILE *in);
+bool ReadState(ifstream& fin);
+	bool SaveState(FILE *out);
+	bool SaveState(ofstream& fout);
+	time_t m_lastUpdateTime;
+	char m_UseVPDAvg;
+	char m_IsHerb;
+	char m_IsAnnual;
+	char m_LFIdaysAvg;
+	FP_STORAGE_TYPE m_Lat;
+	FP_STORAGE_TYPE m_TminMin;
+	FP_STORAGE_TYPE m_TminMax;
+	FP_STORAGE_TYPE m_VPDMin;
+	FP_STORAGE_TYPE m_VPDMax;
+	FP_STORAGE_TYPE m_DaylenMin;
+	FP_STORAGE_TYPE m_DaylenMax;
+	FP_STORAGE_TYPE m_MaxGSI;
+	FP_STORAGE_TYPE m_GreenupThreshold;
+	FP_STORAGE_TYPE m_MaxLFMVal;
+	FP_STORAGE_TYPE m_MinLFMVal;
+	FP_STORAGE_TYPE m_Slope;
+	FP_STORAGE_TYPE m_Intercept;
+	char m_hasGreenedUpThisYear;
+	char m_hasExceeded120ThisYear;
+	char m_canIncreaseHerb;
+	FP_STORAGE_TYPE lastHerbFM;
+
+
+	std::vector<FP_STORAGE_TYPE> m_qGSI;
+	//char m_qPrecipSize;
+	//std::vector<float> m_qPrecip;
+};
+
