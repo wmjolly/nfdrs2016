@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-g 
+CFLAGS=-g -fopenmp
 DEPS = nfdrs2016.h
 TARGET = nfdrs2016
 
@@ -7,7 +7,7 @@ TARGET = nfdrs2016
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 nfdrs2016: main.cpp nfdrs2016.o  deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o
-	$(CC) $(CFLAGS) main.cpp nfdrs2016.o deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o -o $@
+	$(CC) $(CFLAGS) main.cpp nfdrs2016.o deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o -o $@ -I/usr/lib -lnetcdf_c++4
 
 nfdrs2016.o: nfdrs2016.cpp nfdrs2016.h
 	$(CC) $(CFLAGS) -c nfdrs2016.cpp
