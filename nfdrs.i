@@ -4,10 +4,31 @@
 %{
 #include "deadfuelmoisture.h"
 %}
+%{
+#include "livefuelmoisture.h"
+%}
+%{
+#include "DFMCalcState.h"
+%}
+%{
+#include "LFMCalcState.h"
+%}
+%{
+#include "NFDR2016CalcState.h"
+%}
+%{
+#include "nfdrs2016.h"
+%}
 
 %include typemaps.i
+%include "std_vector.i"
+%include "std_string.i"
+%include "std_iostream.i"
 
 #ifdef SWIGPYTHON
+typedef float FP_STORAGE_TYPE;
+typedef long time_t;
+
 %typemap(out) DoubleArray * {
   int len=$1->length, i;
 
@@ -39,4 +60,9 @@
 #endif
 
 %include "deadfuelmoisture.h"
+%include "livefuelmoisture.h"
+%include "DFMCalcState.h"
+%include "LFMCalcState.h"
+%include "NFDR2016CalcState.h"
+%include "nfdrs2016.h"
 
