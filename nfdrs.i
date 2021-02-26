@@ -17,6 +17,9 @@
 #include "NFDR2016CalcState.h"
 %}
 %{
+#include "station.h"
+%}
+%{
 #include "nfdrs2016.h"
 %}
 
@@ -64,5 +67,5 @@ typedef long time_t;
 %include "DFMCalcState.h"
 %include "LFMCalcState.h"
 %include "NFDR2016CalcState.h"
-%include "nfdrs2016.h"
-
+%include "station.h"
+%include "nfdrs2016.h
