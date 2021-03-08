@@ -1,10 +1,7 @@
 #pragma once
 #include <vector>
-#include <iostream>
 #include "NFDR2016StateSizes.h"
-#include "time.h"
-#include "stdio.h"
-using namespace std;
+
 class LFMCalcState
 {
 public:
@@ -13,14 +10,14 @@ public:
 	~LFMCalcState();
 
 	bool  ReadState(FILE *in);
-bool ReadState(ifstream& fin);
 	bool SaveState(FILE *out);
-	bool SaveState(ofstream& fout);
+
 	time_t m_lastUpdateTime;
 	char m_UseVPDAvg;
 	char m_IsHerb;
 	char m_IsAnnual;
 	char m_LFIdaysAvg;
+	char m_nDaysPrecip;
 	FP_STORAGE_TYPE m_Lat;
 	FP_STORAGE_TYPE m_TminMin;
 	FP_STORAGE_TYPE m_TminMax;
@@ -38,7 +35,9 @@ bool ReadState(ifstream& fin);
 	char m_hasExceeded120ThisYear;
 	char m_canIncreaseHerb;
 	FP_STORAGE_TYPE lastHerbFM;
-
+	char m_useRTPrecip;
+	FP_STORAGE_TYPE m_pcpMin;
+	FP_STORAGE_TYPE m_pcpMax;
 
 	std::vector<FP_STORAGE_TYPE> m_qGSI;
 	//char m_qPrecipSize;

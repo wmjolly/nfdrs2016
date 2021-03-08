@@ -162,6 +162,80 @@ DeadFuelMoisture::DeadFuelMoisture( const DeadFuelMoisture& r )
     return;
 }
 
+//------------------------------------------------------------------------------
+/*! \brief Assignment operator.
+
+    \param[in] r Reference to the DeadFuelMoisture instance from which to copy.
+ */
+
+const DeadFuelMoisture& DeadFuelMoisture::operator=( const DeadFuelMoisture& r )
+{
+    if ( this != &r )
+    {
+        //m_semTime   = r.m_semTime;
+        m_density   = r.m_density;
+        m_dSteps    = r.m_dSteps;
+        m_hc        = r.m_hc;
+        m_length    = r.m_length;
+        m_name      = r.m_name;
+        m_nodes     = r.m_nodes;
+        m_radius    = r.m_radius;
+        m_rai0      = r.m_rai0;
+        m_rai1      = r.m_rai1;
+        m_stca      = r.m_stca;
+        m_stcd      = r.m_stcd;
+        m_mSteps    = r.m_mSteps;
+        m_stv       = r.m_stv;
+        m_wfilmk    = r.m_wfilmk;
+        m_wmx       = r.m_wmx;
+        m_allowRainfall2  = r.m_allowRainfall2;
+        m_allowRainstorm  = r.m_allowRainstorm;
+        m_pertubateColumn = r.m_pertubateColumn;
+        m_rampRai0  = r.m_rampRai0;
+        m_dx        = r.m_dx;
+        m_wmax      = r.m_wmax;
+        m_x         = r.m_x;
+        m_v         = r.m_v;
+        m_amlf      = r.m_amlf;
+        m_capf      = r.m_capf;
+        m_hwf       = r.m_hwf;
+        m_dx_2      = r.m_dx_2;
+        m_vf        = r.m_vf;
+        m_bp0       = r.m_bp0;
+        m_ha0       = r.m_ha0;
+        m_rc0       = r.m_rc0;
+        m_sv0       = r.m_sv0;
+        m_ta0       = r.m_ta0;
+        m_init      = r.m_init;
+        m_bp1       = r.m_bp1;
+        m_et        = r.m_et;
+        m_ha1       = r.m_ha1;
+        m_rc1       = r.m_rc1;
+        m_sv1       = r.m_sv1;
+        m_ta1       = r.m_ta1;
+        m_ddt       = r.m_ddt;
+        m_mdt       = r.m_mdt;
+        m_mdt_2     = r.m_mdt_2;
+        m_pptrate   = r.m_pptrate;
+        m_ra0       = r.m_ra0;
+        m_ra1       = r.m_ra1;
+        m_rdur      = r.m_rdur;
+        m_sf        = r.m_sf;
+        m_hf        = r.m_hf;
+        m_wsa       = r.m_wsa;
+        m_sem       = r.m_sem;
+        m_wfilm     = r.m_wfilm;
+        m_elapsed   = r.m_elapsed;
+        m_t         = r.m_t;
+        m_s         = r.m_s;
+        m_d         = r.m_d;
+        m_w         = r.m_w;
+        m_updates   = r.m_updates;
+        m_state     = r.m_state;
+        m_randseed  = r.m_randseed;
+    }
+    return( *this );
+}
 
 //------------------------------------------------------------------------------
 /*! \brief Virtual class destructor.
@@ -436,26 +510,35 @@ double DeadFuelMoisture::desorptionRate( void ) const
 
 void DeadFuelMoisture::diffusivity ( double bp )
 {
-    // Loop for each node
+	double tk, qv, cpv, dv, ps1, c1, c2, wc, daw, svaw, vfaw, vfcw, rfcw, fac, con, qw, e, dvpr;
+	// Loop for each node
     for ( int i=0; i<m_nodes; i++ )
     {
         // Stick temperature (oK)
-        double tk    = m_t[i] + 273.2;
+        //double 
+		tk    = m_t[i] + 273.2;
         // Latent heat of vaporization of water (cal/mol
-        double qv    = 13550. - 10.22 * tk;
+       //double 
+		qv    = 13550. - 10.22 * tk;
         // Specific heat of water vapor (cal/(mol*K))
-        double cpv   = 7.22 + .002374 * tk + 2.67e-07 * tk * tk;
+        //double 
+		cpv   = 7.22 + .002374 * tk + 2.67e-07 * tk * tk;
         // Sea level atmospheric pressure = 0.0242 cal/cm3
-        double dv    = 0.22 * 3600. * ( 0.0242 / bp )
+       // double 
+		dv    = 0.22 * 3600. * ( 0.0242 / bp )
                      * pow( ( tk / 273.2 ), 1.75 );
         // Water saturation vapor pressure at surface temp (cal/cm3)
-        double ps1   = 0.0000239 * exp(20.58 - (5205. / tk));
+        //double 
+			ps1   = 0.0000239 * exp(20.58 - (5205. / tk));
         // Emc sorption isotherm parameter (g/g)
-        double c1    = 0.1617 - 0.001419 * m_t[i];
+        //double 
+			c1    = 0.1617 - 0.001419 * m_t[i];
         // Emc sorption isotherm parameter (g/g)
-        double c2    = 0.4657 + 0.003578 * m_t[i];
+        //double 
+			c2    = 0.4657 + 0.003578 * m_t[i];
         // Lesser of nodal or fiber saturation moisture (g/g)
-        double wc;
+       // double 
+			wc;
         // Reciprocal slope of the sorption isotherm
         double dhdm = 0.0;
         if ( m_w[i] < m_wsa )
@@ -476,23 +559,32 @@ void DeadFuelMoisture::diffusivity ( double bp )
             }
         }
         // Density of adsorbed water (g/cm3)
-        double daw  = 1.3 - 0.64 * wc;
+        //double 
+			daw  = 1.3 - 0.64 * wc;
         // Specific volume of adsorbed water (cm3/g)
-        double svaw = 1. / daw;
+        //double 
+			svaw = 1. / daw;
         // Volume fraction of adborbed water (dl)
-        double vfaw = svaw * wc / (0.685 + svaw * wc);
+        //double 
+			vfaw = svaw * wc / (0.685 + svaw * wc);
         // Volume fraction of moist cell wall (dl)
-        double vfcw = (0.685 + svaw * wc) / ((1.0 / m_density) + svaw * wc);
+        //double 
+			vfcw = (0.685 + svaw * wc) / ((1.0 / m_density) + svaw * wc);
         // Converts D from wood substance to whole wood basis
-        double rfcw = 1.0 - sqrt(1.0 - vfcw);
+        //double 
+			rfcw = 1.0 - sqrt(1.0 - vfcw);
         // Converts D from wood substance to whole wood basis
-        double fac  = 1.0 / (rfcw * vfcw);
+        //double 
+			fac  = 1.0 / (rfcw * vfcw);
         // Correction for tortuous paths in cell wall
-        double con  = 1.0 / (2.0 - vfaw);
+       // double 
+			con  = 1.0 / (2.0 - vfaw);
         // Differential heat of sorption of water (cal/mol)
-        double qw   = 5040. * exp(-14.0 * wc);
+        //double
+			qw   = 5040. * exp(-14.0 * wc);
         // Activation energy for bound water diffusion (cal/mol)
-        double e    = (qv + qw - cpv * tk) / 1.2;
+        //double 
+			e    = (qv + qw - cpv * tk) / 1.2;
 
         //----------------------------------------------------------------------
         // The factor 0.016 below is a correction for hindered water vapor
@@ -501,7 +593,8 @@ void DeadFuelMoisture::diffusivity ( double bp )
         //      -- note from Ralph Nelson
         //----------------------------------------------------------------------
 
-        double dvpr = 18.0 * 0.016 * (1.0-vfcw) * dv * ps1 * dhdm
+        //double 
+			dvpr = 18.0 * 0.016 * (1.0-vfcw) * dv * ps1 * dhdm
                     / ( m_density * 1.987 * tk );
         m_d[i] = dvpr + 3600. * 0.0985 * con * fac * exp(-e/(1.987*tk));
     }
@@ -1391,6 +1484,43 @@ double DeadFuelMoisture::uniformRandom( double min, double max )
     return( (max - min) * ( (double) rand() / (double) RAND_MAX ) + min );
 }
 
+bool isLeapYear(int year)
+{
+	bool isLeap = false;
+	if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+		isLeap = true;
+	return isLeap;
+}
+const int SecondsPerMinute = 60;
+const int SecondsPerHour = 3600;
+const int SecondsPerDay = 86400;
+const int DaysOfMonth[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+time_t mkgmtime(short year, short month, short day, short hour, short minute, short second, int *jDay)
+{
+	time_t secs = 0;
+	int doy = 0;
+	for (short y = 1970; y < year; ++y)
+		secs += (isLeapYear(y) ? 366 : 365) * SecondsPerDay;
+	for (short m = 1; m < month; ++m) 
+	{
+		secs += DaysOfMonth[m - 1] * SecondsPerDay;
+		doy += DaysOfMonth[m - 1];
+		if (m == 2 && isLeapYear(year))
+		{
+			secs += SecondsPerDay;
+			doy++;
+		}
+	}
+	secs += (day - 1) * SecondsPerDay;
+	secs += hour * SecondsPerHour;
+	secs += minute * SecondsPerMinute;
+	secs += second;
+	doy += (day - 1);
+	*jDay = doy;
+	return secs;
+}
+
 //------------------------------------------------------------------------------
 /*! \brief Updates a dead moisture stick's internal and external environment
     based on the current weather observation values.
@@ -1421,6 +1551,7 @@ double DeadFuelMoisture::uniformRandom( double min, double max )
     \retval FALSE if inputs are out of range and the stick is \b not updated.
  */
 
+
 bool DeadFuelMoisture::update(
         int     year,
         int     month,
@@ -1436,22 +1567,12 @@ bool DeadFuelMoisture::update(
         bool prcpAsAmnt
     )
 {
+	//const time_t SECS_PER_HOUR = 60 * 60;
     // Determine Julian date for this new observation
     time_t loctime;
-    struct tm timeinfo, *loctimeinfo;
-    memset(&timeinfo,0, sizeof(struct tm));
-    timeinfo.tm_isdst = 0;  /* Allow mktime to determine DST setting. */
-    timeinfo.tm_mon   = month -1;
-    timeinfo.tm_mday = day;
-    timeinfo.tm_year = std::max(year, 1970) - 1900;
-    timeinfo.tm_hour = hour;
-    timeinfo.tm_min = minute;
-    timeinfo.tm_sec = second;
-    loctime = mktime (&timeinfo);
-    loctimeinfo = localtime(&loctime);
-    char JDay[80];
-    strftime (JDay,80,"%j",loctimeinfo);
-    double seconds = difftime(loctime,obstime);
+	int jDay = 1;
+	loctime = mkgmtime(year, month, day, hour, minute, second, &jDay);
+	double seconds = (loctime - obstime);//our mkgmtime is always seconds! Removed OS ambiguity and calls to mktime() and difftime() SB 20201/01/13
 #ifdef DEBUG
     if(seconds <= 0){
         std::cout << m_Hour << " " << hour << endl;
@@ -1470,8 +1591,8 @@ bool DeadFuelMoisture::update(
     m_Day = day;
     m_Month = month;
     m_Year = year;
-    m_Jday = atof(JDay);
-    obstime = loctime;
+	m_Jday = jDay;
+	obstime = loctime;
 
     // Determine elapsed time (h) between the current and previous dates
     double et = seconds / 3600;
@@ -2145,6 +2266,209 @@ void DeadFuelMoisture::zero( void )
     return;
 }
 
+//------------------------------------------------------------------------------
+/*! \brief DeadFuelMoisture stream insertion operator.
+
+    The DeadFuelMoisture output format a series of "<name> <value>" pairs.
+
+    \param[in] output   Reference to the output stream.
+    \param[in] r        Reference to the DeadFuelMoisture instance.
+
+    \relates DeadFuelMoisture
+
+    \return Reference to the output stream.
+ */
+
+ostream& operator<<( ostream& output, const DeadFuelMoisture& r )
+{
+    std::vector<double>::const_iterator it;
+    output << "m_JDay "  << r.m_Jday << "\n"
+        << "m_density "     << r.m_density << "\n"
+        << "m_dSteps "      << r.m_dSteps << "\n"
+        << "m_hc "          << r.m_hc << "\n"
+        << "m_length "      << r.m_length << "\n"
+        << "m_name "        << r.m_name << "\n"
+        << "m_nodes "       << r.m_nodes << "\n"
+        << "m_radius "      << r.m_radius << "\n"
+        << "m_rai0 "        << r.m_rai0 << "\n"
+        << "m_rai1 "        << r.m_rai1 << "\n"
+        << "m_stca "        << r.m_stca << "\n"
+        << "m_stcd "        << r.m_stcd << "\n"
+        << "m_mSteps "      << r.m_mSteps << "\n"
+        << "m_stv "         << r.m_stv << "\n"
+        << "m_wfilmk "      << r.m_wfilmk << "\n"
+        << "m_wmx "         << r.m_wmx << "\n"
+        << "m_dx "          << r.m_dx << "\n"
+        << "m_wmax "        << r.m_wmax << "\n"
+        << "m_x (" << r.m_x.size() << ") ";
+    for ( it = r.m_x.begin(); it != r.m_x.end(); it++ )
+    {
+        output << " " << *it ;
+    }
+    output << "\nm_v (" << r.m_v.size() << ") " ;
+    for ( it = r.m_v.begin(); it != r.m_v.end(); it++ )
+    {
+        output << " " << *it ;
+    }
+    output<< "\nm_amlf " << r.m_amlf << "\n"
+        << "m_capf "    << r.m_capf << "\n"
+        << "m_hwf "     << r.m_hwf << "\n"
+        << "m_dx_2 "    << r.m_dx_2 << "\n"
+        << "m_vf "      << r.m_vf << "\n"
+        << "m_bp0 "     << r.m_bp0 << "\n"
+        << "m_ha0 "     << r.m_ha0 << "\n"
+        << "m_rc0 "     << r.m_rc0 << "\n"
+        << "m_sv0 "     << r.m_sv0 << "\n"
+        << "m_ta0 "     << r.m_ta0 << "\n"
+        << "m_init "    << r.m_init << "\n"
+        << "m_bp1 "     << r.m_bp1 << "\n"
+        << "m_et "      << r.m_et << "\n"
+        << "m_ha1 "     << r.m_ha1 << "\n"
+        << "m_rc1 "     << r.m_rc1 << "\n"
+        << "m_sv1 "     << r.m_sv1 << "\n"
+        << "m_ta1 "     << r.m_ta1 << "\n"
+        << "m_ddt "     << r.m_ddt << "\n"
+        << "m_mdt "     << r.m_mdt << "\n"
+        << "m_mdt_2 "   << r.m_mdt_2 << "\n"
+        << "m_pptrate " << r.m_pptrate << "\n"
+        << "m_ra0 "     << r.m_ra0 << "\n"
+        << "m_ra1 "     << r.m_ra1 << "\n"
+        << "m_rdur "    << r.m_rdur << "\n"
+        << "m_sf "      << r.m_sf << "\n"
+        << "m_hf "      << r.m_hf << "\n"
+        << "m_wsa "     << r.m_wsa << "\n"
+        << "m_sem "     << r.m_sem << "\n"
+        << "m_wfilm "   << r.m_wfilm << "\n"
+        << "m_elapsed " << r.m_elapsed << "\n"
+        << "m_t " << r.m_t.size() << " ";
+    for ( it = r.m_t.begin(); it != r.m_t.end(); it++ )
+    {
+        output << " " << *it ;
+    }
+    output << "\nm_s " << r.m_s.size() << " ";
+    for ( it = r.m_s.begin(); it != r.m_s.end(); it++ )
+    {
+        output << " " << *it ;
+    }
+    output << "\nm_d " << r.m_d.size() << " ";
+    for ( it = r.m_d.begin(); it != r.m_d.end(); it++ )
+    {
+        output << " " << *it ;
+    }
+    output << "\nm_w " << r.m_w.size() << " ";
+    for ( it = r.m_w.begin(); it != r.m_w.end(); it++ )
+    {
+        output << " " << *it ;
+    }
+    output << "\nm_updates " << r.m_updates << "\n"
+        << "m_state "       << r.m_state << "\n"
+        << "m_randseed "    << r.m_randseed << "\n" ;
+    return( output );
+}
+
+//------------------------------------------------------------------------------
+/*! \brief DeadFuelMoisture stream extraction operator.
+
+    The DeadFuelMoisture input format must be "yyyy/mm/dd hh:mm:ss.sss".
+
+    \param[in] input    Reference to the input stream.
+    \param[in] r        Reference to the DeadFuelMoisture instance.
+
+    \relates DeadFuelMoisture
+
+    \todo Test this!
+
+    \return Reference to the input stream.
+ */
+
+istream& operator>>( istream& input, DeadFuelMoisture& r )
+{
+    string vname;
+    int i, n;
+    input >> vname >> r.m_Jday;
+    input >> vname >> r.m_density;
+    input >> vname >> r.m_dSteps;
+    input >> vname >> r.m_hc;
+    input >> vname >> r.m_length;
+    input >> vname >> r.m_name;
+    input >> vname >> r.m_nodes;
+    input >> vname >> r.m_radius;
+    input >> vname >> r.m_rai0;
+    input >> vname >> r.m_rai1;
+    input >> vname >> r.m_stca;
+    input >> vname >> r.m_stcd;
+    input >> vname >> r.m_mSteps;
+    input >> vname >> r.m_stv;
+    input >> vname >> r.m_wfilmk;
+    input >> vname >> r.m_wmx;
+    input >> vname >> r.m_dx;
+    input >> vname >> r.m_wmax;
+    input >> vname >> n;
+    for ( i=0; i<n; i++ )
+    {
+        input >> r.m_x[i];
+    }
+    input >> vname >> n;
+    for ( i=0; i<n; i++ )
+    {
+        input >> r.m_v[i];
+    }
+    input >> vname >> r.m_amlf;
+    input >> vname >> r.m_capf;
+    input >> vname >> r.m_hwf;
+    input >> vname >> r.m_dx_2;
+    input >> vname >> r.m_vf;
+    input >> vname >> r.m_bp0;
+    input >> vname >> r.m_ha0;
+    input >> vname >> r.m_rc0;
+    input >> vname >> r.m_sv0;
+    input >> vname >> r.m_ta0;
+    input >> vname >> r.m_init;
+    input >> vname >> r.m_bp1;
+    input >> vname >> r.m_et;
+    input >> vname >> r.m_ha1;
+    input >> vname >> r.m_rc1;
+    input >> vname >> r.m_sv1;
+    input >> vname >> r.m_ta1;
+    input >> vname >> r.m_ddt;
+    input >> vname >> r.m_mdt;
+    input >> vname >> r.m_mdt_2;
+    input >> vname >> r.m_pptrate;
+    input >> vname >> r.m_ra0;
+    input >> vname >> r.m_ra1;
+    input >> vname >> r.m_rdur;
+    input >> vname >> r.m_sf;
+    input >> vname >> r.m_hf;
+    input >> vname >> r.m_wsa;
+    input >> vname >> r.m_sem;
+    input >> vname >> r.m_wfilm;
+    input >> vname >> r.m_elapsed;
+    input >> vname >> n;
+    for ( i=0; i<n; i++ )
+    {
+        input >> r.m_t[i];
+    }
+    input >> vname >> n;
+    for ( i=0; i<n; i++ )
+    {
+        input >> r.m_s[i];
+    }
+    input >> vname >> n;
+    for ( i=0; i<n; i++ )
+    {
+        input >> r.m_d[i];
+    }
+    input >> vname >> n;
+    for ( i=0; i<n; i++ )
+    {
+        input >> r.m_w[i];
+    }
+    input >> vname >> r.m_updates;
+    input >> vname >> n;
+    r.m_state = n;
+    input >> vname >> r.m_randseed;
+    return( input );
+}
 
 DFMCalcState DeadFuelMoisture::GetState()
 {
@@ -2176,7 +2500,7 @@ DFMCalcState DeadFuelMoisture::GetState()
 		//tVal = m_s[i];
 		ret.m_s.push_back(m_s[i]);
 		//tVal = m_d[i];
-		//ret.m_d.push_back(m_d[i]);
+		ret.m_d.push_back(m_d[i]);
 		//tVal = m_w[i];
 		ret.m_w.push_back(m_w[i]);
 	}
@@ -2216,7 +2540,7 @@ bool DeadFuelMoisture::SetState(DFMCalcState state)
 		//tVal = m_s[i];
 		m_s.push_back(state.m_s[i]);
 		//tVal = m_d[i];
-		//m_d.push_back(state.m_d[i]);
+		m_d.push_back(state.m_d[i]);
 		//tVal = m_w[i];
 		m_w.push_back(state.m_w[i]);
 	}

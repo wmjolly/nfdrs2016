@@ -23,8 +23,8 @@
     http://www.opensource.org/licenses/gpl-license.php
  */
 
-#ifndef _DEADFUELMOISTURE_H
-#define _DEADFUELMOISTURE_H
+#ifndef _DEADFUELMOISTURE_H_INCLUDED_
+#define _DEADFUELMOISTURE_H_INCLUDED_
 
 #include "DFMCalcState.h"
 // Standard include files
@@ -35,8 +35,12 @@
 #include <string>
 #include <vector>
 #include <string.h>
-
-using namespace std;
+using std::istream;
+using std::ostream;
+using std::setfill;
+using std::setw;
+using std::string;
+using std::vector;
 
 // Custom include files
 #ifdef HAVE_CONFIG_H
@@ -181,18 +185,19 @@ using namespace std;
  */
 typedef enum 
 {
-    DFM_State_None          = 0,
-    DFM_State_Adsorption    = 1,
-    DFM_State_Desorption    = 2,
-    DFM_State_Condensation1 = 3,
-    DFM_State_Condensation2 = 4,
-    DFM_State_Evaporation   = 5,
-    DFM_State_Rainfall1     = 6,
-    DFM_State_Rainfall2     = 7,
-    DFM_State_Rainstorm     = 8,
-    DFM_State_Stagnation    = 9,
-    DFM_State_Error         = 10
+	DFM_State_None = 0,
+	DFM_State_Adsorption = 1,
+	DFM_State_Desorption = 2,
+	DFM_State_Condensation1 = 3,
+	DFM_State_Condensation2 = 4,
+	DFM_State_Evaporation = 5,
+	DFM_State_Rainfall1 = 6,
+	DFM_State_Rainfall2 = 7,
+	DFM_State_Rainstorm = 8,
+	DFM_State_Stagnation = 9,
+	DFM_State_Error = 10
 } DFM_State;
+
 
 class DeadFuelMoisture
 {
@@ -338,14 +343,16 @@ static const double Scr;    // = 0.285714;
     \brief DeadFuelMoisture environmental condition states.
  */
 
-
-
 //------------------------------------------------------------------------------
 /*! \var DFM_States
     \brief Number of DFM_State enumerations.
  */
 static const int DFM_States = 11;
 
+// Friends
+public:
+    friend ostream &operator<<( ostream& output, const DeadFuelMoisture& r );
+    friend istream &operator>>( istream& input, DeadFuelMoisture& r );
 
 // Public methods
 public:
@@ -355,8 +362,8 @@ public:
     virtual ~DeadFuelMoisture( void ) ;
     // Copy constructor
     DeadFuelMoisture( const DeadFuelMoisture& rhs ) ;
-    
-    
+    // Assignment operator
+    const DeadFuelMoisture& operator=( const DeadFuelMoisture& rhs ) ;
     const char* className( void ) const ;
     // Static convenience functions
     static DeadFuelMoisture* createDeadFuelMoisture1( const string& name="" ) ;

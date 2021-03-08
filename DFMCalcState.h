@@ -1,9 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <iostream>
-#include <fstream>
-using namespace std;
+
 #include "NFDR2016StateSizes.h"
 
 class DFMCalcState
@@ -14,9 +12,8 @@ public:
 	~DFMCalcState();
 
 	bool  ReadState(FILE *in);
-	bool ReadState(ifstream& fin);
 	bool SaveState(FILE *out);
-	bool SaveState(ofstream& fout);
+
 	//use to construct obstime member
 	short m_JDay;
 	short m_Year;
@@ -52,7 +49,7 @@ public:
 	short     m_nodes;    //!< Number of stick nodes in the radial direction. just for knowing how big vectors are when stored
 	std::vector<FP_STORAGE_TYPE> m_t; //!< Array of nodal temperatures (oC).
 	std::vector<FP_STORAGE_TYPE> m_s; //!< Array of nodal fiber saturation points (g water/g dry fuel).
-	//std::vector<FP_STORAGE_TYPE> m_d; //!< Array of nodal bound water diffusivities (cm2/h).
+	std::vector<FP_STORAGE_TYPE> m_d; //!< Array of nodal bound water diffusivities (cm2/h).
 	std::vector<FP_STORAGE_TYPE> m_w; //!< Array of nodal moisture contents (g water/g dry fuel).
 
 };

@@ -28,7 +28,7 @@
 #include<numeric>
 
 #include "livefuelmoisture.h"
-//#include <atlbase.h>
+#include <atlbase.h>
 #include <ctime>
 
 using namespace std;
@@ -45,12 +45,12 @@ void LiveFuelMoisture::Initialize(double Lat,bool IsHerb, bool IsAnnual = false)
     }
     else
     {
-       SetLFMParameters(1.0,0.5,60,250);
+       SetLFMParameters(1.0,0.5,60,200);
     }
 	//if (iGSI.size() > 0)
 	//	iGSI.clear();
 	while (qGSI.size() > 0)
-		qGSI.pop_back();
+		qGSI.pop_front();
 
 	//while (qPrecip.size() > 0)
 	//	qPrecip.pop();
@@ -75,40 +75,30 @@ double LiveFuelMoisture::GetMoisture(bool SnowDay)
 }
 
 
-void LiveFuelMoisture::Update(double TempF, double MaxTempF, double MinTempF, double RH, double MinRH, int Jday, double Precip24, time_t thisTime)
+void LiveFuelMoisture::Update(double TempF, double MaxTempF, double MinTempF, double RH, double MinRH, int Jday, double RTPrcp, time_t thisTime)
 {
 	double GSI;
 	if (!m_UseVPDAvg)
-		GSI = CalcGSI(MinRH, MaxTempF, MinTempF, m_Lat, Jday);
+		GSI = CalcGSI(MinRH, MaxTempF, MinTempF, RTPrcp,m_Lat, Jday);
 	else
-		GSI = CalcGSI_VPDAvg(RH, TempF, MaxTempF, MinTempF, m_Lat, Jday);
+		GSI = CalcGSI_VPDAvg(RH, TempF, MaxTempF, MinTempF, RTPrcp, m_Lat, Jday);
 	//cout << "iGSI: " << GSI << " " << CalcRunningAvgGSI() << " " << m_MaxGSI << " " << endl;
 	//iGSI.push_back(GSI);
 	int gDays = 0, days = 0, pDays = 0;
 	if (lastUpdateTime != 0)
 	{
-		int secs = difftime(thisTime, lastUpdateTime);
-		days = secs / 86400;//86400 seconds per day
+        int secs = thisTime - lastUpdateTime;
+        days = secs / 86400;//86400 seconds per day
 		if (days > 1)//gap, deal with it by removing extra values
 		{
-			gDays = min(days - 1, (int) qGSI.size());
+			gDays = min(days - 1, qGSI.size());
 			for (int p = 0; p < gDays; p++)
-				qGSI.pop_back();
+				qGSI.pop_front();
 		}
 	}
 	qGSI.push_back(GSI);
 	while (qGSI.size() > m_LFIdaysAvg)
-		qGSI.pop_back();
-	//now check precip
-	/*if (days > 1)//gap, deal with it by inserting zeroes
-	{
-		pDays = min(days - 1, nPrecipQueueDays);
-		for (int p = 0; p < pDays; p++)
-			qPrecip.push(0.0);
-	}
-	qPrecip.push(Precip24);
-	while (qPrecip.size() > nPrecipQueueDays)
-		qPrecip.pop();*/
+		qGSI.pop_front();
 	lastUpdateTime = thisTime;
 }
 
@@ -150,7 +140,7 @@ void LiveFuelMoisture::Update(double TempF, double MaxTempF, double MinTempF, do
     \param[in] DaylMax: Upper limit for daylength (minutes)
     \return NONE
  */
-void LiveFuelMoisture::SetLimits(double TminMin = -2.0,double TminMax = 5.0,double VPDMin = 900,double VPDMax = 4100,double DaylMin = 36000,double DaylMax = 39600)
+void LiveFuelMoisture::SetLimits(double TminMin = -2.0,double TminMax = 5.0,double VPDMin = 900,double VPDMax = 4100,double DaylMin = 36000,double DaylMax = 39600, double PcpMin = 0.5, double PcpMax = 1.5)
 {
     m_TminMin = TminMin;
     m_TminMax = TminMax;
@@ -158,6 +148,8 @@ void LiveFuelMoisture::SetLimits(double TminMin = -2.0,double TminMax = 5.0,doub
     m_VPDMax = VPDMax;
     m_DaylenMin = DaylMin;
     m_DaylenMax = DaylMax;
+	m_RTPrcpMin = PcpMin;
+	m_RTPrcpMax = PcpMax;
 }
 
 void LiveFuelMoisture::SetMAPeriod(unsigned int MAPeriod=21)
@@ -173,6 +165,15 @@ void LiveFuelMoisture::SetUseVPDAvg(bool set)
 bool LiveFuelMoisture::GetUseVPDAvg()
 {
 	return m_UseVPDAvg;
+}
+
+void LiveFuelMoisture::SetUseRTPrecip(bool set)
+{
+    m_useRTPrecip = set;
+}
+bool LiveFuelMoisture::GetUseRTPrecip()
+{
+    return m_useRTPrecip;
 }
 
 bool LiveFuelMoisture::GetIsAnnual()
@@ -212,6 +213,16 @@ void LiveFuelMoisture::GetLFMParameters(double * MaxGSI,double * GreenupThreshol
 
 }
 
+void LiveFuelMoisture::SetNumPrecipDays(int numDays)
+{
+	m_nDaysPrecip = numDays;
+}
+
+int LiveFuelMoisture::GetNumPrecipDays()
+{
+	return m_nDaysPrecip;
+}
+
 double LiveFuelMoisture::GetMaxGSI()
 {
 	return m_MaxGSI;
@@ -243,8 +254,8 @@ LiveFuelMoisture::LiveFuelMoisture()
     ResetHerbState();
 	m_UseVPDAvg = false;
 	lastUpdateTime = 0;
-
-
+	m_nDaysPrecip = 30;
+    m_useRTPrecip = false;
 }
 
 LiveFuelMoisture::LiveFuelMoisture(double Lat,bool IsHerb, bool IsAnnual)
@@ -259,46 +270,20 @@ LiveFuelMoisture::LiveFuelMoisture(double Lat,bool IsHerb, bool IsAnnual)
     }
     else
     {
-       SetLFMParameters(1.0,0.5,60,250);
+       SetLFMParameters(1.0,0.5,60,200);
     }
 
 	lastUpdateTime = 0;
-
+	m_nDaysPrecip = 30;
+    m_useRTPrecip = false;
 }
 
 double LiveFuelMoisture::CalcRunningAvgGSI()
 {
-    //int numValid = 0;
-    //long days_start = 0, days_end = 0;
-    //double gsi = 0.0;
-
-   /* if(iGSI.size() < m_LFIdaysAvg)
-    {
-        days_start = 0.0; days_end = iGSI.size();
-    }
-    else
-    {
-        days_start = iGSI.size() - m_LFIdaysAvg; days_end = iGSI.size();
-    }
-    //cout << days_start << " " << days_end << endl;
-    for(int i = days_start; i < days_end; i++)
-    {
-        if(iGSI[i] >= 0)
-        {
-            numValid++;
-            gsi += iGSI[i];
-        }
-    }*/
-	double val = 0.0, gsi = 0.0;
+ 	double val = 0.0, gsi = 0.0;
 	gsi = std::accumulate(qGSI.begin(), qGSI.end(), val);
 	if(qGSI.size() > 0)
 		gsi /= qGSI.size();
-   // if(numValid > 0)
-   //    gsi /= numValid;
-	//if (gsi - gsi2 != 0.0)
-	//{
-	//	ATLTRACE("gsi = %f, gsi2 = %f\n", gsi, gsi2);
-	//}
     return gsi;
 }
 double LiveFuelMoisture::CalcRunningAvgHerbFM(bool SnowDay)
@@ -353,30 +338,37 @@ double LiveFuelMoisture::CalcRunningAvgWoodyFM(bool SnowDay)
 }
 
 
-double LiveFuelMoisture::CalcGSI(double minRH, double maxTempF, double minTempF, double lat, int doy)
+double LiveFuelMoisture::CalcGSI(double minRH, double maxTempF, double minTempF, double RTPrcp, double lat, int doy)
 {
 
-    double GSI = 0.0, tMinInd, vpdInd, daylenInd;
+    double GSI = 0.0, tMinInd, vpdInd, daylenInd, prcpInd;
     tMinInd = GetTminInd(minTempF);
     vpdInd = GetVPDInd(CalcVPD(max(minRH, 5.0), maxTempF));
     daylenInd = GetDaylInd(CalcDayl(lat, doy));
-    GSI = tMinInd * vpdInd * daylenInd;
-
+    prcpInd = GetPrcpInd(RTPrcp);
+    if(m_useRTPrecip)
+        GSI = tMinInd * vpdInd * daylenInd * prcpInd;
+    else
+        GSI = tMinInd * vpdInd * daylenInd;
     // cout << tMinInd << " " << CalcVPD(max(minRH, 5.0), maxTempF) << " " <<  vpdInd << " " << daylenInd << endl;
     return GSI;
 }
 
 
-double LiveFuelMoisture::CalcGSI_VPDAvg(double RH, double TempF, double maxTempF, double minTempF, double lat, int doy)
+double LiveFuelMoisture::CalcGSI_VPDAvg(double RH, double TempF, double maxTempF, double minTempF, double RTPrcp, double lat, int doy)
 {
 
-    double GSI = 0.0,tMinInd, tDew, vpdInd, daylenInd, vpd;
+    double GSI = 0.0,tMinInd, tDew, vpdInd, daylenInd, vpd, prcpInd;
     tMinInd = GetTminInd(minTempF);
     tDew = CalcDPT(TempF, RH);
     vpd = CalcVPDavg(tDew, (maxTempF + minTempF) / 2);
     vpdInd = GetVPDInd(vpd);
     daylenInd = GetDaylInd(CalcDayl(lat, doy));
-	GSI = tMinInd * vpdInd * daylenInd;// *100.0;
+    prcpInd = GetPrcpInd(RTPrcp);
+    if (m_useRTPrecip)
+        GSI = tMinInd * vpdInd * daylenInd * prcpInd;// *100.0;
+    else
+        GSI = tMinInd * vpdInd * daylenInd;
     return GSI;
 }
 
@@ -401,6 +393,22 @@ double LiveFuelMoisture::GetTminInd(double Tmin)
     }
 }
 
+double LiveFuelMoisture::GetPrcpInd(double RTPrcp)
+{
+
+    if (RTPrcp < m_RTPrcpMin)
+    {
+        return 0;
+    }
+    else if (RTPrcp > m_RTPrcpMax)
+    {
+        return 1;
+    }
+    else
+    {
+        return (RTPrcp - m_RTPrcpMin) / (m_RTPrcpMax - m_RTPrcpMin);
+    }
+}
 double LiveFuelMoisture::GetVPDInd(double VPD)
 {
     if(m_VPDMax == m_VPDMin)
@@ -521,12 +529,12 @@ LFMCalcState LiveFuelMoisture::GetState()
 	ret.m_MaxGSI = m_MaxGSI;
 	ret.m_MaxLFMVal = m_MaxLFMVal;
 	ret.m_MinLFMVal = m_MinLFMVal;
-	list<double> copyQ = qGSI;
-	while ((int) copyQ.size() > 0)
+	deque<double> copyQ = qGSI;
+	while (copyQ.size() > 0)
 	{
 		double qVal = copyQ.front();
 		ret.m_qGSI.push_back((float)qVal);
-		copyQ.pop_back();
+		copyQ.pop_front();
 	}
 	ret.m_Slope = m_Slope;
 	ret.m_TminMax = m_TminMax;
@@ -535,7 +543,11 @@ LFMCalcState LiveFuelMoisture::GetState()
 	ret.m_VPDMax = m_VPDMax;
 	ret.m_VPDMin = m_VPDMin;
 	ret.m_lastUpdateTime = lastUpdateTime;
-	return ret;
+	ret.m_nDaysPrecip = m_nDaysPrecip;
+    ret.m_useRTPrecip = m_useRTPrecip;
+    ret.m_pcpMin = m_RTPrcpMin;
+    ret.m_pcpMax = m_RTPrcpMax;
+    return ret;
 }
 
 bool LiveFuelMoisture::SetState(LFMCalcState state)
@@ -568,43 +580,9 @@ bool LiveFuelMoisture::SetState(LFMCalcState state)
 	m_VPDMax = state.m_VPDMax;
 	m_VPDMin = state.m_VPDMin;
 	lastUpdateTime = state.m_lastUpdateTime;
+	m_nDaysPrecip = state.m_nDaysPrecip;
+    m_useRTPrecip = state.m_useRTPrecip;
+    m_RTPrcpMin = state.m_pcpMin;
+    m_RTPrcpMax = state.m_pcpMax;
 	return true;
 }
-
-
-/*double LiveFuelMoisture::GetXDaysPrecipitation(int nDays)
-{
-	double startVal = 0.0, val = 0.0;
-	if (nDays >= qPrecip.size())
-		val =  std::accumulate(qPrecip._Get_container().begin(), qPrecip._Get_container().end(), startVal);
-	else
-	{
-		//return std::accumulate(qPrecip._Get_container()., qPrecip._Get_container().end(), startVal);
-		int startDay = qPrecip.size() - nDays;
-		for (int d = startDay; d < qPrecip.size(); d++)
-		{
-			val += qPrecip._Get_container().at(d);
-		}
-	}
-	return val;
-}*/
-
-/*double LiveFuelMoisture::GetMaxGSI()
-{
-	return m_MaxGSI;
-}
-
-double LiveFuelMoisture::GetGreenupThreshold()
-{
-	return m_GreenupThreshold;
-}
-
-double LiveFuelMoisture::GetMinLFMVal()
-{
-	return m_MinLFMVal;
-}
-
-double LiveFuelMoisture::GetMaxLFMVal()
-{
-	return m_MaxLFMVal;
-}*/

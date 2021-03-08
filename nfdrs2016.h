@@ -14,18 +14,20 @@
 #include <list>
 #include <numeric>
 #include <algorithm>
+#include <deque>
 #include "deadfuelmoisture.h"
 #include "livefuelmoisture.h"
 #include "station.h"
+#include "utctime.h"
 
-using namespace std;
+/*using namespace std;
 using std::istream;
 using std::ostream;
 using std::setfill;
 using std::setw;
 using std::string;
 using std::vector;
-
+*/
 
 class NFDR2016CalcState;
 /**************************** NFDRDLL.H ***********************************
@@ -138,19 +140,26 @@ class NFDR2016Calc
         NFDR2016Calc(double Lat,char FuelModel,int SlopeClass, double AvgAnnPrecip,bool LT,bool Cure, bool IsAnnual);
         ~NFDR2016Calc();
         // Member functions
-		void Init(double Lat, char FuelModel, int SlopeClass, double AvgAnnPrecip, bool LT, bool Cure, bool isAnnual);// , double fMaxGSI, double fGSIGreenupThreshold);
+		void Init(double Lat, char FuelModel, int SlopeClass, double AvgAnnPrecip, bool LT, bool Cure, bool isAnnual, int kbdiThreshold, int RegObsHour = 13);
        void Update(Wx);
 	   void Update(int Year, int Month, int Day, int Hour, int Julian, double Temp, double MinTemp, double MaxTemp, double RH, double MinRH, double PPTAmt, double pcp24, double SolarRad, double WS, bool SnowDay, int RegObsHr);
-	   void UpdateDaily(int Year, int Month, int Day, int Julian, double Temp, double MinTemp, double MaxTemp, double RH, double MinRH, double pcp24, double WS, double fMC1, double fMC10, double fMC100, double fMC1000, double fuelTemp, bool SnowDay/* = false*/);
+       void Update(int Year, int Month, int Day, int Hour, double Temp, double RH, double PPTAmt, double SolarRad, double WS, bool SnowDay);
+       void UpdateDaily(int Year, int Month, int Day, int Julian, double Temp, double MinTemp, double MaxTemp, double RH, double MinRH, double pcp24, double WS, double fMC1, double fMC10, double fMC100, double fMC1000, double fuelTemp, bool SnowDay/* = false*/);
         void iSetFuelModel (char cFM);
         int iSetFuelMoistures (double fMC1, double fMC10,double fMC100, double fMC1000, double fMCWood, double fMCHerb, double fuelTempC);
         int iCalcIndexes (int iWS, int iSlopeCls,double* fSC,double* fERC, double* fBI, double* fIC,double fGSI = -999,double fKBDI = -999);
         int iCalcKBDI (double fPrecipAmt, int iMaxTemp,double fCummPrecip, int iYKBDI, double fAvgPrecip);
 		double Cure(double fGSI = -999, double fGreenupThreshold = 0.5, double fGSIMax = 1.0);
 
-		void SetGSIParams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false);
-		void SetHerbGSIparams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false);
-		void SetWoodyGSIparams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false);
+		void SetGSIParams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, 
+			double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false, 
+			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false);
+		void SetHerbGSIparams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, 
+			double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false, 
+			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false);
+		void SetWoodyGSIparams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, 
+			double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false, 
+			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false);
 
 		void SetStartKBDI(int sKBDI);
 		int GetStartKBDI();
@@ -164,11 +173,16 @@ class NFDR2016Calc
 		bool ReadState(string fileName);
 		bool SaveState(string fileName);
 		bool LoadState(NFDR2016CalcState state);
-		const int nPrecipQueueDays = 90;
+		static const int nPrecipQueueDays = 90;
+        static const int nHoursPerDay = 24;
+        double GetMinTemp();
+        double GetMaxTemp();
+        double GetMinRH();
+        double GetPcp24();
 
 		double CTA;
         double Lat;
-        long num_updates;
+        __int64 num_updates;
         int NFDRSVersion;
         int YesterdayJDay;
         int SlopeClass;
@@ -177,9 +191,9 @@ class NFDR2016Calc
         DeadFuelMoisture TenHourFM;
         DeadFuelMoisture HundredHourFM;
         DeadFuelMoisture ThousandHourFM;
-	LiveFuelMoisture GsiFM;
-	LiveFuelMoisture HerbFM;
-	LiveFuelMoisture WoodyFM;
+		LiveFuelMoisture GsiFM;
+		LiveFuelMoisture HerbFM;
+		LiveFuelMoisture WoodyFM;
 
 		int FuelModel;
         int SG1, SG10, SG100, SG1000, SGWOOD, SGHERB;
@@ -191,7 +205,7 @@ class NFDR2016Calc
         double MC1, MC10, MC100, MC1000, MCWOOD, MCHERB;
 		double BI, ERC, SC, IC;
 		int PrevYear;
-		int KBDI, YKBDI, StartKBDI;
+		int KBDI, YKBDI, StartKBDI, KBDIThreshold;
 		double CummPrecip, AvgPrecip;
         bool UseLoadTransfer, UseCuring;
         bool SnowCovered;
@@ -203,8 +217,15 @@ class NFDR2016Calc
        // ofstream debug;
 		//time_t lastObsTime;
         //list<double> prcp;
-		time_t lastUpdateTime;
-		vector<float> qPrecip;
+        int m_regObsHour;
+		//time_t lastUpdateTime;
+        time_t utcHourDiff;
+        utctime::UTCTime lastUtcUpdateTime;
+        utctime::UTCTime lastDailyUpdateTime;
+        std::deque<double> qPrecip;
+        std::deque<double> qHourlyPrecip;
+        std::deque<double> qHourlyTemp;
+        std::deque<double> qHourlyRH;
 };
 
 

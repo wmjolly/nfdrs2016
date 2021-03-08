@@ -33,7 +33,7 @@ DFMCalcState::DFMCalcState(const DFMCalcState &rhs)
 	m_nodes = rhs.m_nodes;
 	m_t = rhs.m_t;
 	m_s = rhs.m_s;
-	//m_d = rhs.m_d;
+	m_d = rhs.m_d;
 	m_w = rhs.m_w;
 }
 
@@ -118,14 +118,13 @@ bool DFMCalcState::ReadState(FILE *in)
 				return false;
 			m_s.push_back(tVal);
 		}
-/*
 		for (int i = 0; i < m_nodes; i++)
 		{
 			nRead = fread(&tVal, sizeof(tVal), 1, in);
 			if (nRead != 1)
 				return false;
 			m_d.push_back(tVal);
-		}*/
+		}
 		for (int i = 0; i < m_nodes; i++)
 		{
 			nRead = fread(&tVal, sizeof(tVal), 1, in);
@@ -213,7 +212,6 @@ bool DFMCalcState::SaveState(FILE *out)
 			if (nWrite != 1)
 				return false;
 		}
-		/*
 		for (int i = 0; i < m_nodes; i++)
 		{
 			tVal = m_d[i];
@@ -221,107 +219,12 @@ bool DFMCalcState::SaveState(FILE *out)
 			if (nWrite != 1)
 				return false;
 		}
-		*/
 		for (int i = 0; i < m_nodes; i++)
 		{
 			tVal = m_w[i];
 			nWrite = fwrite(&tVal, sizeof(tVal), 1, out);
 			if (nWrite != 1)
 				return false;
-		}
-	}
-
-	return true;
-}
-
-bool DFMCalcState::SaveState(ofstream& fout)
-{
-	fout.write((char *)&m_JDay, sizeof(m_JDay));
-	fout.write((char *)&m_Year, sizeof(m_Year));
-	fout.write((char *)&m_Month, sizeof(m_Month));
-	fout.write((char *)&m_Day, sizeof(m_Day));
-	fout.write((char *)&m_Hour, sizeof(m_Hour));
-	fout.write((char *)&m_Min, sizeof(m_Min));
-	fout.write((char *)&m_Sec, sizeof(m_Sec));
-	fout.write((char *)&m_obstime, sizeof(m_obstime));
-	fout.write((char *)&m_bp1, sizeof(m_bp1));
-	fout.write((char *)&m_et, sizeof(m_et));
-	fout.write((char *)&m_ha1, sizeof(m_ha1));
-	fout.write((char *)&m_rc1, sizeof(m_rc1));
-	fout.write((char *)&m_sv1, sizeof(m_sv1));
-	fout.write((char *)&m_ta1, sizeof(m_ta1));
-	fout.write((char *)&m_hf, sizeof(m_hf));
-	fout.write((char *)&m_wsa, sizeof(m_wsa));
-	fout.write((char *)&m_rdur, sizeof(m_rdur));
-	fout.write((char *)&m_ra1, sizeof(m_ra1));
-	fout.write((char *)&m_nodes, sizeof(m_nodes));
-	if (m_nodes > 0)
-	{
-		FP_STORAGE_TYPE tVal;
-		for (int i = 0; i < m_nodes; i++)
-		{
-			//tVal = m_t[i];
-				fout.write((char *)&m_t[i], sizeof(tVal));
-
-		}
-		for (int i = 0; i < m_nodes; i++)
-		{
-			tVal = m_s[i];
-			fout.write((char *)&m_s[i], sizeof(tVal));
-			
-		}
-		for (int i = 0; i < m_nodes; i++)
-		{
-			tVal = m_w[i];
-			fout.write((char *)&m_w[i], sizeof(tVal));
-			
-		}
-	}
-
-	return true;
-
-}
-bool DFMCalcState::ReadState(ifstream& fin)
-{
-	fin.read((char *)&m_JDay, sizeof(m_JDay));
-	fin.read((char *)&m_Year, sizeof(m_Year));
-	fin.read((char *)&m_Month, sizeof(m_Month));
-	fin.read((char *)&m_Day, sizeof(m_Day));
-	fin.read((char *)&m_Hour, sizeof(m_Hour));
-	fin.read((char *)&m_Min, sizeof(m_Min));
-	fin.read((char *)&m_Sec, sizeof(m_Sec));
-	fin.read((char *)&m_obstime, sizeof(m_obstime));
-	fin.read((char *)&m_bp1, sizeof(m_bp1));
-	fin.read((char *)&m_et, sizeof(m_et));
-	fin.read((char *)&m_ha1, sizeof(m_ha1));
-	fin.read((char *)&m_rc1, sizeof(m_rc1));
-	fin.read((char *)&m_sv1, sizeof(m_sv1));
-	fin.read((char *)&m_ta1, sizeof(m_ta1));
-	fin.read((char *)&m_hf, sizeof(m_hf));
-	fin.read((char *)&m_wsa, sizeof(m_wsa));
-	fin.read((char *)&m_rdur, sizeof(m_rdur));
-	fin.read((char *)&m_ra1, sizeof(m_ra1));
-	fin.read((char *)&m_nodes, sizeof(m_nodes));
-	if (m_nodes > 0)
-	{
-		FP_STORAGE_TYPE tVal;
-		for (int i = 0; i < m_nodes; i++)
-		{
-			//tVal = m_t[i];
-				fin.read((char *)&m_t[i], sizeof(tVal));
-
-		}
-		for (int i = 0; i < m_nodes; i++)
-		{
-			tVal = m_s[i];
-			fin.read((char *)&m_s[i], sizeof(tVal));
-			
-		}
-		for (int i = 0; i < m_nodes; i++)
-		{
-			tVal = m_w[i];
-			fin.read((char *)&m_w[i], sizeof(tVal));
-			
 		}
 	}
 

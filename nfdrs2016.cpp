@@ -20,6 +20,7 @@
 #include "NFDR2016CalcState.h"
 
 #define SNOWDAYS_TRIGGER 5
+const double NORECORD = -999.0;
 
 /*#ifdef _DEBUG
 #include <windows.h>
@@ -31,6 +32,7 @@
 #define radiansToDegrees(angleRadians) (angleRadians * 180.0 / M_PI)
 
 using namespace std;
+using namespace utctime;
 
 //#define DEBUG
 #undef DEBUG
@@ -48,7 +50,7 @@ NFDR2016Calc::NFDR2016Calc()
 	NFDRSVersion = 16;                                          // NFDRS Model Version
 	num_updates = 0;                                            // Counter for number of fuel moisture update cycles
 	CummPrecip = 0.0;                                           // Place to store cummulative precip
-	YKBDI = KBDI = 100;                                                // Starting KBDI
+	YKBDI = KBDI = KBDIThreshold = 100;                                                // Starting KBDI
 	MCHERB = 30.0;
 	MCWOOD = 60.0;
 	PrevYear = -999;
@@ -58,7 +60,8 @@ NFDR2016Calc::NFDR2016Calc()
 	FuelTemperature = -999;
 	m_GSI = 0.0;
 	nConsectiveSnowDays = 0;
-	lastUpdateTime = 0;
+	//lastUpdateTime = 0;
+    Init(45, 'Y', 1, 0.0, true, true, true, 100, 13);
 }
 
 
@@ -69,8 +72,8 @@ NFDR2016Calc::NFDR2016Calc()
 NFDR2016Calc::NFDR2016Calc(double inLat, char FuelModel,int inSlopeClass, double inAvgAnnPrecip,bool LT,bool Cure, bool IsAnnual)
 {
 	StartKBDI = 100;
-	Init(inLat, FuelModel, inSlopeClass, inAvgAnnPrecip, LT, Cure, IsAnnual);// , 1.0, 0.5);
-
+	Init(inLat, FuelModel, inSlopeClass, inAvgAnnPrecip, LT, Cure, IsAnnual, 100);// , 1.0, 0.5);
+   
 	//the below commented out as now done in Init
   /*  
 	CTA = 0.0459137;
@@ -103,7 +106,7 @@ NFDR2016Calc::~NFDR2016Calc()
 
 }
 
-void NFDR2016Calc::Init(double inLat, char iFuelModel, int inSlopeClass, double inAvgAnnPrecip, bool LT, bool Cure, bool isAnnual)//, double fMaxGSI , double fGSIGreenupThreshold )
+void NFDR2016Calc::Init(double inLat, char iFuelModel, int inSlopeClass, double inAvgAnnPrecip, bool LT, bool Cure, bool isAnnual, int kbdiThreshold, int RegObsHour/* = 13*/)//, double fMaxGSI , double fGSIGreenupThreshold )
 {
 	CTA = 0.0459137;
 	NFDRSVersion = 16;                                          // NFDRS Model Version
@@ -111,13 +114,13 @@ void NFDR2016Calc::Init(double inLat, char iFuelModel, int inSlopeClass, double 
 	num_updates = 0;                                            // Counter for number of fuel moisture update cycles
 	AvgPrecip = inAvgAnnPrecip;                                    // Average Annual Precip
 	CummPrecip = 0.0;                                           // Place to store cummulative precip
-																// Initialize the live fuel moisture models
+	KBDIThreshold = kbdiThreshold;															// Initialize the live fuel moisture models
 	GsiFM.Initialize(Lat, true, isAnnual);
 	HerbFM.Initialize(Lat, true, isAnnual);                           // Live Herb FM model init
 	WoodyFM.Initialize(Lat, false, false);                        // Live Woody FM model init
 	GsiFM.SetLFMParameters(GsiFM.GetMaxGSI(), GsiFM.GetGreenupThreshold(), 30, 250);
 	HerbFM.SetLFMParameters(HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold(), 30, 250);
-	WoodyFM.SetLFMParameters(WoodyFM.GetMaxGSI(), WoodyFM.GetGreenupThreshold(), 60, 250);
+	WoodyFM.SetLFMParameters(WoodyFM.GetMaxGSI(), WoodyFM.GetGreenupThreshold(), 60, 200);
 
 	// Initialize the dead fuel moisture models
 	OneHourFM.initializeParameters(0.2, "One Hour");             // 1hr Dead FM model init
@@ -154,12 +157,19 @@ void NFDR2016Calc::Init(double inLat, char iFuelModel, int inSlopeClass, double 
 	FuelTemperature = -999;
 	m_GSI = 0.0;
 	nConsectiveSnowDays = 0;
-	lastUpdateTime = 0;
+	//lastUpdateTime = 0;
 	iSetFuelModel(iFuelModel);
 	//fill the 24 hours pcparray with 0's
 //	for (int h = 0; h < 24; h++)
 //		prcp.push_back(0.0);
-
+    m_regObsHour = RegObsHour;
+    for (int h = 0; h < nHoursPerDay; h++)
+    {
+        qHourlyTemp.push_back(NORECORD);
+        qHourlyRH.push_back(NORECORD);
+        qHourlyPrecip.push_back(NORECORD);
+    }
+    utcHourDiff = utctime::get_hour_diff();
 }
 
 void NFDR2016Calc::SetSCMax(int maxSC)
@@ -228,16 +238,40 @@ int NFDR2016Calc::iSetFuelMoistures (double fMC1, double fMC10,double fMC100, do
    return EXIT_SUCCESS;
 }
 
+bool IsLeapYear(int year)
+{
+    bool isLeap = false;
+    if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+        isLeap = true;
+    return isLeap;
+}
+
+int CalcJulianDay(int year, int month, int day)
+{
+    const int DaysOfMonth[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    int dayOfYear = 0;
+    for (int m = 0; m < month; m++)
+        dayOfYear += DaysOfMonth[m];
+    dayOfYear += day;
+    if (IsLeapYear(year) && month >= 2)
+        dayOfYear++;
+    return dayOfYear;
+}
+
 //void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, int Julian, double Temp, double MinTemp, double MaxTemp, double RH, double PPTAcc, double PPTAmt, double SolarRad, double WS, bool SnowDay, int RegObsHr)
 void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, int Julian, double Temp, double MinTemp, double MaxTemp, double RH, double MinRH, double PPTAmt, double pcp24, double SolarRad, double WS, bool SnowDay, int RegObsHr)
 {
+    int tJulian = CalcJulianDay(Year, Month - 1, Day);
+    if (Julian != tJulian)
+        printf("Julain day mismatch for Year = %d, Month = %d, Day = %d, passed Julian = %d, calced Julian = %d\n",
+            Year, Month, Day, Julian, tJulian);
 
 	if (PrevYear > 0 && YesterdayJDay > 0)
 	{
 		if (Year < PrevYear || (Year > (PrevYear + 1)) || (365 * (Year - PrevYear) + Julian - YesterdayJDay > 30))
 		{
 			//reinit
-			Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, HerbFM.GetIsAnnual());// , HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold());
+			Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, HerbFM.GetIsAnnual(), KBDIThreshold);// , HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold());
 		}
 	}
 
@@ -323,6 +357,22 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, int Julian, do
 
 	//moved here so we have hourly fueltemp to save to DB
 	FuelTemperature = OneHourFM.surfaceTemperature();
+    //update 24 hour deques
+    UTCTime thisUtcTime(Year, Month, Day, Hour, 0, 0);
+    time_t thisDiff = thisUtcTime - lastUtcUpdateTime;
+    time_t hoursDiff = thisDiff / utcHourDiff;
+    if (hoursDiff > 1)//gap, insert NODATA
+    {
+        for (int h = 1; h < hoursDiff; h++)
+        {
+            qHourlyPrecip.push_back(NORECORD);
+            qHourlyTemp.push_back(NORECORD);
+            qHourlyRH.push_back(NORECORD);
+        }
+    }
+    qHourlyPrecip.push_back(PPTAmt);
+    qHourlyTemp.push_back(Temp);
+    qHourlyRH.push_back(RH);
 
    // Update live fuel moisture once per day
     if (Hour == RegObsHr)// || num_updates==0)
@@ -331,26 +381,28 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, int Julian, do
         //LFM requires temperatures in F and RH between 1 and 100
         // Note: Need to set up a common units structure for all calculations
         // Maybe just need to change Nelson code to accept above temp / rh scales
-		tm thisTM;
-		thisTM.tm_year = Year - 1900;
-		thisTM.tm_mon = Month;
-		thisTM.tm_mday = Day;
-		thisTM.tm_hour = Hour;
-		thisTM.tm_min = 0;
-		thisTM.tm_sec = 0;
-		thisTM.tm_isdst = 0;
-		//time_t 
-		time_t thisTime = mktime(&thisTM);
-		//change, 3/1/2017 SB to use proper variables
-       // WoodyFM.Update(RH, Temp, MinTemp, Julian);
-		//HerbFM.Update(RH, Temp, MinTemp, Julian);
-		if (SnowDay)
+       // int secs = difftime(thisUtcTime.timestamp(), lastDailyUpdateTime.timestamp());
+        int secs = thisUtcTime.timestamp() - lastDailyUpdateTime.timestamp();
+  		if (SnowDay)
 			nConsectiveSnowDays++;
 		else
 			nConsectiveSnowDays = 0;
-		GsiFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, pcp24, thisTime);
-		HerbFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, pcp24, thisTime);
-		WoodyFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, pcp24, thisTime);
+
+		//update the precip deque before updating GSI!!!!
+		int days = secs / 86400;//86400 seconds per day
+		if (days > 1)//gap, deal with it by inserting zeroes
+		{
+			int pDays = min(days - 1, nPrecipQueueDays);
+			for (int p = 0; p < pDays; p++)
+				qPrecip.push_back(0.0);
+		}
+		qPrecip.push_back(pcp24);
+		while (qPrecip.size() > nPrecipQueueDays)
+			qPrecip.pop_front();
+
+		GsiFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(GsiFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+		HerbFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(HerbFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+		WoodyFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(WoodyFM.GetNumPrecipDays()), thisUtcTime.timestamp());
 
 		m_GSI = GsiFM.CalcRunningAvgGSI();
         MCHERB = HerbFM.GetMoisture(nConsectiveSnowDays >= SNOWDAYS_TRIGGER ? true : false);
@@ -359,29 +411,8 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, int Julian, do
         KBDI = iCalcKBDI(pcp24, (int) MaxTemp, CummPrecip, YKBDI, AvgPrecip);
 		YKBDI = KBDI;
 
-		int secs = difftime(thisTime, lastUpdateTime);
-		int days = secs / 86400;//86400 seconds per day
-		if (days > 1)//gap, deal with it by inserting zeroes
-		{
-			int pDays = min(days - 1, nPrecipQueueDays);
-			for (int p = 0; p < pDays; p++)
-				qPrecip.insert(qPrecip.begin(),0.0);
-		}
-		qPrecip.insert(qPrecip.begin(),pcp24);
-		while (qPrecip.size() > nPrecipQueueDays)
-			qPrecip.pop_back();
 
-		lastUpdateTime = thisTime;
-
-		//don't need to do this, let iCalcKBDI track CummPrecip
-        //(PPTAmt24 > 0) ? CummPrecip += PPTAmt24 : CummPrecip += 0;
-        // Set the fuel moistures for this time step
-        //iSetFuelMoistures(MC1, MC10, MC100, MC1000, MCWOOD, MCHERB, FuelTemperature);
-        // Calculate the indices
-
-       // double fSC, fERC, fBI, fIC;
-        //iCalcIndexes((int) WS, SlopeClass, &fSC, &fERC, &fBI, &fIC);
-
+        lastDailyUpdateTime = thisUtcTime;
 
     }
 	iSetFuelMoistures(MC1, MC10, MC100, MC1000, MCWOOD, MCHERB, FuelTemperature);
@@ -391,20 +422,216 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, int Julian, do
 	iCalcIndexes((int)WS, SlopeClass, &fSC, &fERC, &fBI, &fIC);
 	num_updates++;
     YesterdayJDay = Julian;
+    lastUtcUpdateTime = thisUtcTime;
+}
 
+void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, double Temp, double RH, double PPTAmt, double SolarRad, double WS, bool SnowDay)
+{
+    int Julian = CalcJulianDay(Year, Month - 1, Day);
+    if (PrevYear > 0 && YesterdayJDay > 0)
+    {
+        if (Year < PrevYear || (Year > (PrevYear + 1)) || (365 * (Year - PrevYear) + Julian - YesterdayJDay > 30))
+        {
+            //reinit
+            Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, HerbFM.GetIsAnnual(), KBDIThreshold);// , HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold());
+        }
+    }
 
+    //Herb and 1-Hour reset every year.... Verify we want to do this
+    if (Julian < YesterdayJDay || YesterdayJDay < 0) {
+        HerbFM.ResetHerbState();
+        //  OneHourFM.initializeStick();
+    }
+    if (PrevYear != Year)
+    {
+        PrevYear = Year;
+    }
+
+    if (Hour == m_regObsHour || num_updates == 0)
+    {
+        if (SnowDay) { SnowCovered = true; }
+        else { SnowCovered = false; }
+    }
+    if (SnowDay) { SnowCovered = true; }
+    else { SnowCovered = false; }
+    double temp = (Temp - 32.0) * 5.0 / 9.0, rh = RH / 100.0, /*accprcp = PPTAcc * 2.54, */sr = SolarRad, pptamnt = PPTAmt * 2.54;
+    if (num_updates == 0)
+    {
+
+        OneHourFM.setMoisture(0.2);
+        TenHourFM.setMoisture(0.2);
+        HundredHourFM.setMoisture(0.2);
+        ThousandHourFM.setMoisture(0.2);
+    }
+
+    double MyMC1 = 0, MyMC10 = 0, MyMC100 = 0, MyMC1000 = 0;
+    // double PPTAmt24 = 0.0;
+    double neltemp = floor(temp * 100 + 0.5) / 100;
+    double nelrh = rh, nelsr = sr, nelppt = pptamnt;
+
+    // Update dead fuel moistures for each time period
+    //cout << wxRec.m_Year << " " << wxRec.m_Month << " " << wxRec.m_Day << " " << wxRec.m_Hour << endl;
+    //if (Temp < 28 && PPTAmt > 0) SnowDay = 1;
+    // Need to set the date / time of the sticks to one hour before the first observation time
+    if (SnowCovered)
+    {
+        neltemp = 0.;
+        nelrh = 0.999;
+        nelsr = 0.;
+        //nelppt = pptamnt;  // This is the place to deal with snow melt.
+        nelppt = 0.;
+
+    }
+#pragma omp parallel sections num_threads(4)
+    {
+
+#pragma omp section
+        {
+
+            OneHourFM.update(Year, Month, Day, Hour, 0, 0, neltemp, nelrh, nelsr, nelppt, 0.02179999999, true);
+            MC1 = MyMC1 = OneHourFM.medianRadialMoisture() * 100;
+            //MC1 = MyMC1 = OneHourFM.meanWtdMoisture() * 100;
+        }
+#pragma omp section
+        {
+
+            TenHourFM.update(Year, Month, Day, Hour, 0, 0, neltemp, nelrh, nelsr, nelppt, 0.02179999999, true);
+            MC10 = MyMC10 = TenHourFM.medianRadialMoisture() * 100;
+            //MC10 = MyMC10 = TenHourFM.meanWtdMoisture() * 100;
+        }
+#pragma omp section
+        {
+
+            HundredHourFM.update(Year, Month, Day, Hour, 0, 0, neltemp, nelrh, nelsr, nelppt, 0.02179999999, true);
+            MC100 = MyMC100 = HundredHourFM.medianRadialMoisture() * 100;
+            //MC100 = MyMC100 = HundredHourFM.meanWtdMoisture() * 100;
+
+        }
+#pragma omp section
+        {
+
+            ThousandHourFM.update(Year, Month, Day, Hour, 0, 0, neltemp, nelrh, nelsr, nelppt, 0.02179999999, true);
+            MC1000 = MyMC1000 = ThousandHourFM.medianRadialMoisture() * 100;
+            //MC1000 = MyMC1000 = ThousandHourFM.meanWtdMoisture() * 100;
+
+        }
+    }
+
+    //moved here so we have hourly fueltemp to save to DB
+    FuelTemperature = OneHourFM.surfaceTemperature();
+
+    //update 24 hour deques
+    UTCTime thisUtcTime(Year, Month, Day, Hour, 0, 0);   
+    time_t thisDiff = thisUtcTime - lastUtcUpdateTime;
+    time_t hoursDiff = thisDiff / utcHourDiff;
+    if (hoursDiff > 1)//gap, insert NODATA
+    {
+        for (int h = 1; h < hoursDiff; h++)
+        {
+            qHourlyPrecip.push_back(NORECORD);
+            qHourlyTemp.push_back(NORECORD);
+            qHourlyRH.push_back(NORECORD);
+        }
+    }
+    qHourlyPrecip.push_back(PPTAmt);
+    qHourlyTemp.push_back(Temp);
+    qHourlyRH.push_back(RH);
+    //trim the deques
+    while (qHourlyTemp.size() > 24)
+        qHourlyTemp.pop_front();
+    while (qHourlyRH.size() > 24)
+        qHourlyRH.pop_front();
+    while (qHourlyPrecip.size() > 24)
+        qHourlyPrecip.pop_front();
+    //deques OK, now figure Min/Max's and 24 hour pcp
+    double MinRH = NORECORD, MinTemp = NORECORD, MaxTemp = NORECORD, pcp24 = 0.0;
+    for (auto it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
+    {
+        if ((*it) != NORECORD)
+        {
+            if (MaxTemp == NORECORD)
+                MaxTemp = *it;
+            else
+                MaxTemp = max(MaxTemp, *it);
+            if (MinTemp == NORECORD)
+                MinTemp = *it;
+            else
+                MinTemp = min(MinTemp, *it);
+        }
+    }
+    for (auto it = qHourlyRH.begin(); it != qHourlyRH.end(); ++it)
+    {
+        if ((*it) != NORECORD)
+        {
+            if (MinRH == NORECORD)
+                MinRH = *it;
+            else
+                MinRH = min(MinRH, *it);
+        }
+    }
+    for (auto it = qHourlyPrecip.begin(); it != qHourlyPrecip.end(); ++it)
+    {
+        if (*it != NORECORD)
+            pcp24 += *it;
+    }
+    // Update live fuel moisture once per day
+    if (Hour == m_regObsHour)// || num_updates==0)
+    {
+        int secs = thisUtcTime.timestamp() - lastDailyUpdateTime.timestamp();
+        //LFM requires temperatures in F and RH between 1 and 100
+        // Note: Need to set up a common units structure for all calculations
+        // Maybe just need to change Nelson code to accept above temp / rh scales
+         if (SnowDay)
+            nConsectiveSnowDays++;
+        else
+            nConsectiveSnowDays = 0;
+        
+        //update the precip deque before updating GSI!!!!
+        int days = secs / 86400;//86400 seconds per day
+        if (days > 1)//gap, deal with it by inserting zeroes
+        {
+            int pDays = min(days - 1, nPrecipQueueDays);
+            for (int p = 0; p < pDays; p++)
+                qPrecip.push_back(0.0);
+        }
+        qPrecip.push_back(pcp24);
+        while (qPrecip.size() > nPrecipQueueDays)
+            qPrecip.pop_front();
+
+        GsiFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(GsiFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+        HerbFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(HerbFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+        WoodyFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(WoodyFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+
+        m_GSI = GsiFM.CalcRunningAvgGSI();
+        MCHERB = HerbFM.GetMoisture(nConsectiveSnowDays >= SNOWDAYS_TRIGGER ? true : false);
+        MCWOOD = WoodyFM.GetMoisture(nConsectiveSnowDays >= SNOWDAYS_TRIGGER ? true : false);
+        // Calculate the daily KBDI that is used for the drought fuel loading
+        KBDI = iCalcKBDI(pcp24, (int)MaxTemp, CummPrecip, YKBDI, AvgPrecip);
+        YKBDI = KBDI;
+
+        lastDailyUpdateTime = thisUtcTime;
+ 
+    }
+    iSetFuelMoistures(MC1, MC10, MC100, MC1000, MCWOOD, MCHERB, FuelTemperature);
+    // Calculate the indices
+
+    double fSC, fERC, fBI, fIC;
+    iCalcIndexes((int)WS, SlopeClass, &fSC, &fERC, &fBI, &fIC);
+    num_updates++;
+    YesterdayJDay = Julian;
+    lastUtcUpdateTime = thisUtcTime;
 }
 
 void NFDR2016Calc::UpdateDaily(int Year, int Month, int Day, int Julian, double Temp, double MinTemp, 
 	double MaxTemp, double RH, double MinRH, double pcp24, double WS,
 	double fMC1, double fMC10, double fMC100, double fMC1000, double fuelTemp,bool SnowDay)
 {
-	if (PrevYear > 0 && YesterdayJDay > 0)
+    if (PrevYear > 0 && YesterdayJDay > 0)
 	{
 		if (Year < PrevYear || (Year >(PrevYear + 1)) || (365 * (Year - PrevYear) + Julian - YesterdayJDay > 30))
 		{
 			//reinit
-			Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, HerbFM.GetIsAnnual());// , HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold());
+			Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, HerbFM.GetIsAnnual(), KBDIThreshold);// , HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold());
 		}
 	}
 
@@ -421,23 +648,36 @@ void NFDR2016Calc::UpdateDaily(int Year, int Month, int Day, int Julian, double 
 	else
 		nConsectiveSnowDays = 0;
 
-	tm thisTM;
-	thisTM.tm_year = Year - 1900;
+    UTCTime thisUtcTime(Year, Month, Day, m_regObsHour, 0, 0);
+   // tm thisTM;
+	/*thisTM.tm_year = Year - 1900;
 	thisTM.tm_mon = Month;
 	thisTM.tm_mday = Day;
 	thisTM.tm_hour = 13;
 	thisTM.tm_min = 0;
 	thisTM.tm_sec = 0;
-	thisTM.tm_isdst = 0;
+	thisTM.tm_isdst = 0;*/
 	//time_t 
-	time_t thisTime = mktime(&thisTM);
-	int secs = difftime(thisTime, lastUpdateTime);
-	int days = secs / 86400;//86400 seconds per day
+	//time_t thisTime = mktime(&thisTM);
+   // int secs = difftime(thisTime, lastUpdateTime);
+    int secs = thisUtcTime.timestamp() - lastDailyUpdateTime.timestamp(); //difftime(thisTime, lastUpdateTime);
+    int days = secs / 86400;//86400 seconds per day
+
+	//do the precip deque before updating GSI!
+	if (days > 1)//gap, deal with it by inserting zeroes
+	{
+		int pDays = min(days - 1, nPrecipQueueDays);
+		for (int p = 0; p < pDays; p++)
+			qPrecip.push_back(0.0);
+	}
+	qPrecip.push_back(pcp24);
+	while (qPrecip.size() > nPrecipQueueDays)
+		qPrecip.pop_front();
 
 	// Update live fuel moisture once per day
-	GsiFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, pcp24, thisTime);
-	HerbFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, pcp24, thisTime);
-		WoodyFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, pcp24, thisTime);
+	GsiFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(GsiFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+	HerbFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(HerbFM.GetNumPrecipDays()), thisUtcTime.timestamp());
+		WoodyFM.Update(Temp, MaxTemp, MinTemp, RH, MinRH, Julian, GetXDaysPrecipitation(WoodyFM.GetNumPrecipDays()), thisUtcTime.timestamp());
 
 		m_GSI = GsiFM.CalcRunningAvgGSI();
 		MCHERB = HerbFM.GetMoisture(nConsectiveSnowDays >= SNOWDAYS_TRIGGER ? true : false);
@@ -456,18 +696,9 @@ void NFDR2016Calc::UpdateDaily(int Year, int Month, int Day, int Julian, double 
 
 	num_updates++;
 	YesterdayJDay = Julian;
-	if (days > 1)//gap, deal with it by inserting zeroes
-	{
-		int pDays = min(days - 1, nPrecipQueueDays);
-		for (int p = 0; p < pDays; p++)
-			qPrecip.insert(qPrecip.begin(),0.0);
-	}
-	qPrecip.insert(qPrecip.begin(),pcp24);
-	while (qPrecip.size() > nPrecipQueueDays)
-		qPrecip.pop_back();
 
-	lastUpdateTime = thisTime;
-
+	//lastUpdateTime = thisTime;
+    lastUtcUpdateTime = lastUtcUpdateTime = thisUtcTime;
 }
 
 void NFDR2016Calc::Update(Wx wxRec)
@@ -651,7 +882,7 @@ int NFDR2016Calc::iCalcIndexes (int iWS, int iSlopeCls,double* fSC,double* fERC,
         tmpKBDI = fKBDI;
     }
 
-	if (tmpKBDI > 100 )
+	if (tmpKBDI > KBDIThreshold )
     {
 
         WTOTD = W1 + W10 + W100;
@@ -660,12 +891,12 @@ int NFDR2016Calc::iCalcIndexes (int iWS, int iSlopeCls,double* fSC,double* fERC,
         PackingRatio = WTOT / fDEPTH;
         if (PackingRatio == 0) PackingRatio = 1.0;
         WTOTD = WTOTD + W1000;
-        DroughtUnit = WDROUGHT / 700.;
+        DroughtUnit = WDROUGHT / (800.0 - KBDIThreshold);
 
-        W1 = W1 + (W1 / WTOTD) * (tmpKBDI - 100) * DroughtUnit;
-        W10 = W10 + (W10 / WTOTD) * (tmpKBDI - 100) * DroughtUnit;
-        W100 = W100 + (W100 / WTOTD) * (tmpKBDI - 100) * DroughtUnit;
-        W1000 = W1000 + (W1000 / WTOTD) * (tmpKBDI - 100) * DroughtUnit;
+        W1 = W1 + (W1 / WTOTD) * (tmpKBDI - KBDIThreshold) * DroughtUnit;
+        W10 = W10 + (W10 / WTOTD) * (tmpKBDI - KBDIThreshold) * DroughtUnit;
+        W100 = W100 + (W100 / WTOTD) * (tmpKBDI - KBDIThreshold) * DroughtUnit;
+        W1000 = W1000 + (W1000 / WTOTD) * (tmpKBDI - KBDIThreshold) * DroughtUnit;
         WTOT = W1 + W10 + W100 + W1000 + WTOTL;
         fDEPTH = (WTOT - W1000) / PackingRatio;
     }
@@ -1057,30 +1288,39 @@ double NFDR2016Calc::Cure(double fGSI, double fGreenupThreshold, double fGSIMax)
    return (1);
 }*/
 void NFDR2016Calc::SetGSIParams(double MaxGSI, double GreenupThreshold, double TminMin /*= -2.0*/, double TminMax /*= 5.0*/, double VPDMin /*= 900 */, double VPDMax /*= 4100 */,
-	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod/* = 21U*/, bool UseVPDAvg) 
+	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod/* = 21U*/, bool UseVPDAvg, unsigned int nPrecipDays/* = 30*/, double rtPrecipMin /*= 0.5*/, 
+    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/)
 {
-	GsiFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax);
+	GsiFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax, rtPrecipMin, rtPrecipMax);
 	GsiFM.SetMAPeriod(MAPeriod);
 	GsiFM.SetUseVPDAvg(UseVPDAvg);
 	GsiFM.SetLFMParameters(MaxGSI, GreenupThreshold, 30, 250);
+	GsiFM.SetNumPrecipDays(nPrecipDays);
+    GsiFM.SetUseRTPrecip(UseRTPrecip);
 }
 
 void NFDR2016Calc::SetHerbGSIparams(double MaxGSI, double GreenupThreshold, double TminMin /*= -2.0*/, double TminMax /*= 5.0*/ , double VPDMin /*= 900 */ , double VPDMax /*= 4100 */ ,
-	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod/* = 21U*/, bool UseVPDAvg)
+	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod/* = 21U*/, bool UseVPDAvg, unsigned int nPrecipDays/* = 30*/, double rtPrecipMin /*= 0.5*/, 
+    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/)
 {
-	HerbFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax);
+	HerbFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax, rtPrecipMin, rtPrecipMax);
 	HerbFM.SetMAPeriod(MAPeriod);
 	HerbFM.SetUseVPDAvg(UseVPDAvg);
 	HerbFM.SetLFMParameters(MaxGSI, GreenupThreshold, 30, 250);
+	HerbFM.SetNumPrecipDays(nPrecipDays);
+    HerbFM.SetUseRTPrecip(UseRTPrecip);
 }
 
 void NFDR2016Calc::SetWoodyGSIparams(double MaxGSI, double GreenupThreshold, double TminMin /*= -2.0*/ , double TminMax /*= 5.0*/ , double VPDMin /*= 900 */ , double VPDMax /*= 4100 */ ,
-	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod /* = 21U*/, bool UseVPDAvg)
+	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod /* = 21U*/, bool UseVPDAvg, unsigned int nPrecipDays/* = 30*/, double rtPrecipMin /*= 0.5*/, 
+    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/)
 {
-	WoodyFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax);
+	WoodyFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax, rtPrecipMin, rtPrecipMax);
 	WoodyFM.SetMAPeriod(MAPeriod);
 	WoodyFM.SetUseVPDAvg(UseVPDAvg);
-	WoodyFM.SetLFMParameters(MaxGSI, GreenupThreshold, 60, 250);
+	WoodyFM.SetLFMParameters(MaxGSI, GreenupThreshold, 60, 200);
+	WoodyFM.SetNumPrecipDays(nPrecipDays);
+    WoodyFM.SetUseRTPrecip(UseRTPrecip);
 }
 
 
@@ -1135,7 +1375,8 @@ bool NFDR2016Calc::LoadState(NFDR2016CalcState state)
 	AvgPrecip = state.m_AvgPrecip;
 	UseCuring = state.m_UseCuring;
 	UseLoadTransfer = state.m_UseLoadTransfer;
-	Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, state.gsiState.m_IsAnnual);
+	KBDIThreshold = state.m_KBDIThreshold;
+	Init(Lat, FuelModel, SlopeClass, AvgPrecip, UseLoadTransfer, UseCuring, state.gsiState.m_IsAnnual, KBDIThreshold);
 
 
 	BI = state.m_BI;
@@ -1144,10 +1385,15 @@ bool NFDR2016Calc::LoadState(NFDR2016CalcState state)
 	m_GSI = state.m_GSI;
 	IC = state.m_IC;
 	KBDI = state.m_KBDI;
-	lastUpdateTime = state.m_lastUpdateTime;
-	
-	//MCHERB = state.m_MCHERB;
-	//MCWOOD = state.m_MCWOOD;
+    KBDIThreshold = state.m_KBDIThreshold;
+	lastUtcUpdateTime = state.m_lastUtcUpdateTime;
+    lastDailyUpdateTime = state.m_lastDailyUpdateTime;
+	MC1 = state.m_MC1;
+	MC10 = state.m_MC10;
+	MC100 = state.m_MC100;
+	MC1000 = state.m_MC1000;
+	MCHERB = state.m_MCHERB;
+	MCWOOD = state.m_MCWOOD;
 	nConsectiveSnowDays = state.m_nConsectiveSnowDays;
 	num_updates = state.m_num_updates;
 	PrevYear = state.m_PrevYear;
@@ -1155,11 +1401,21 @@ bool NFDR2016Calc::LoadState(NFDR2016CalcState state)
 	StartKBDI = state.m_StartKBDI;
 	YesterdayJDay = state.m_YesterdayJDay;
 	YKBDI = state.m_YKBDI;
-	/*for (int i = 0; i < state.m_qPrecip.size(); i++)
+	for (int i = 0; i < state.m_qPrecip.size(); i++)
 	{
-		qPrecip.insert(state.m_qPrecip.begin(), state.m_qPrecip.at(i));
-	}*/
-
+		qPrecip.push_back(state.m_qPrecip.at(i));
+	}
+    //added 2021/01/26 - Hourly temp RH and precip deques
+    qHourlyPrecip.clear();
+    qHourlyRH.clear();
+    qHourlyTemp.clear();
+    for (int h = 0; h < nHoursPerDay; h++)
+    {
+        qHourlyTemp.push_back(state.m_qHourlyTemp[h]);
+        qHourlyRH.push_back(state.m_qHourlyRH[h]);
+        qHourlyPrecip.push_back(state.m_qHourlyPrecip[h]);
+    }
+    //end 2021/01/26 additions
 	OneHourFM.SetState(state.fm1State);
 	TenHourFM.SetState(state.fm10State);
 	HundredHourFM.SetState(state.fm100State);
@@ -1167,11 +1423,63 @@ bool NFDR2016Calc::LoadState(NFDR2016CalcState state)
 	HerbFM.SetState(state.herbState);
 	WoodyFM.SetState(state.woodyState);
 	GsiFM.SetState(state.gsiState);
-	MC1 = OneHourFM.medianRadialMoisture() * 100;
-	MC10 = TenHourFM.medianRadialMoisture() * 100;
-	MC100 = HundredHourFM.medianRadialMoisture() * 100;
-	MC1000 = ThousandHourFM.medianRadialMoisture() * 100;
-	MCHERB = HerbFM.GetMoisture(nConsectiveSnowDays >= SNOWDAYS_TRIGGER ? true : false);
-        MCWOOD = WoodyFM.GetMoisture(nConsectiveSnowDays >= SNOWDAYS_TRIGGER ? true : false);
+
 	return true;
+}
+
+double NFDR2016Calc::GetMinTemp()
+{
+    double minTemp = NORECORD;
+    for (auto it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
+    {
+        if ((*it) != NORECORD)
+        {
+            if (minTemp == NORECORD)
+                minTemp = *it;
+            else
+                minTemp = min(minTemp, *it);
+        }
+    }
+    return minTemp;
+}
+
+double NFDR2016Calc::GetMaxTemp()
+{
+    double maxTemp = NORECORD;
+    for (auto it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
+    {
+        if ((*it) != NORECORD)
+        {
+            if (maxTemp == NORECORD)
+                maxTemp = *it;
+            else
+                maxTemp = max(maxTemp, *it);
+        }
+    }
+    return maxTemp;
+}
+double NFDR2016Calc::GetMinRH()
+{
+    double minRH = NORECORD;
+    for (auto it = qHourlyRH.begin(); it != qHourlyRH.end(); ++it)
+    {
+        if ((*it) != NORECORD)
+        {
+            if (minRH == NORECORD)
+                minRH = *it;
+            else
+                minRH = min(minRH, *it);
+        }
+    }
+    return minRH;
+}
+double NFDR2016Calc::GetPcp24()
+{
+    double pcp24 = 0.0;
+    for (auto it = qHourlyPrecip.begin(); it != qHourlyPrecip.end(); ++it)
+    {
+        if (*it != NORECORD)
+            pcp24 += *it;
+    }
+    return pcp24;
 }

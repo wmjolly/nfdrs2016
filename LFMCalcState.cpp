@@ -1,7 +1,4 @@
 #include "LFMCalcState.h"
-#include <iostream>
-#include <fstream>
-
 
 
 
@@ -33,6 +30,10 @@ LFMCalcState::LFMCalcState()
 	m_canIncreaseHerb = 0;
 	lastHerbFM = 0;
 	m_lastUpdateTime = 0;
+	m_nDaysPrecip = 0;
+	m_useRTPrecip = 0;
+	m_pcpMin = 0.5;
+	m_pcpMax = 1.5;
 }
 
 LFMCalcState::LFMCalcState(const LFMCalcState& rhs)
@@ -64,6 +65,10 @@ LFMCalcState::LFMCalcState(const LFMCalcState& rhs)
 	lastHerbFM = rhs.lastHerbFM;
 	m_qGSI = rhs.m_qGSI;
 	m_lastUpdateTime = rhs.m_lastUpdateTime;
+	m_nDaysPrecip = rhs.m_nDaysPrecip;
+	m_useRTPrecip = rhs.m_useRTPrecip;
+	m_pcpMin = rhs.m_pcpMin;
+	m_pcpMax = rhs.m_pcpMax;
 }
 
 LFMCalcState::~LFMCalcState()
@@ -150,6 +155,18 @@ bool LFMCalcState::ReadState(FILE *in)
 			return false;
 		m_qGSI.push_back(tVal);
 	}
+	nRead = fread(&m_nDaysPrecip, sizeof(m_nDaysPrecip), 1, in);
+	if (nRead != 1)
+		return false;
+	nRead = fread(&m_useRTPrecip, sizeof(m_useRTPrecip), 1, in);
+	if (nRead != 1)
+		return false;
+	nRead = fread(&m_pcpMin, sizeof(m_pcpMin), 1, in);
+	if (nRead != 1)
+		return false;
+	nRead = fread(&m_pcpMax, sizeof(m_pcpMax), 1, in);
+	if (nRead != 1)
+		return false;
 
 	return true;
 }
@@ -233,76 +250,19 @@ bool LFMCalcState::SaveState(FILE *out)
 		if (nWrite != 1)
 			return false;
 	}
-	return true;
-}
+	nWrite = fwrite(&m_nDaysPrecip, sizeof(m_nDaysPrecip), 1, out);
+	if (nWrite != 1)
+		return false;
 
-bool LFMCalcState::SaveState(ofstream& fout)
-{
-	fout.write((char *)&m_lastUpdateTime, sizeof(m_lastUpdateTime));
-	fout.write((char *)&m_UseVPDAvg, sizeof(m_UseVPDAvg));
-	fout.write((char *)&m_IsHerb, sizeof(m_IsHerb));
-	fout.write((char *)&m_IsAnnual, sizeof(m_IsAnnual));
-	fout.write((char *)&m_LFIdaysAvg, sizeof(m_LFIdaysAvg));
-	fout.write((char *)&m_Lat, sizeof(m_Lat));
-	fout.write((char *)&m_TminMin, sizeof(m_TminMin));
-	fout.write((char *)&m_TminMax, sizeof(m_TminMax));
-	fout.write((char *)&m_VPDMin, sizeof(m_VPDMin));
-	fout.write((char *)&m_VPDMax, sizeof(m_VPDMax));
-	fout.write((char *)&m_DaylenMin, sizeof(m_DaylenMin));
-	fout.write((char *)&m_DaylenMax, sizeof(m_DaylenMax));
-	fout.write((char *)&m_MaxGSI, sizeof(m_MaxGSI));
-	fout.write((char *)&m_GreenupThreshold, sizeof(m_GreenupThreshold));
-	fout.write((char *)&m_MaxLFMVal, sizeof(m_MaxLFMVal));
-	fout.write((char *)&m_MinLFMVal, sizeof(m_MinLFMVal));
-	fout.write((char *)&m_Slope, sizeof(m_Slope));
-	fout.write((char *)&m_Intercept, sizeof(m_Intercept));
-	fout.write((char *)&m_hasGreenedUpThisYear, sizeof(m_hasGreenedUpThisYear));
-	fout.write((char *)&m_hasExceeded120ThisYear, sizeof(m_hasExceeded120ThisYear));
-	fout.write((char *)&m_canIncreaseHerb, sizeof(m_canIncreaseHerb));
-	fout.write((char *)&lastHerbFM, sizeof(lastHerbFM));
-	short qSize = m_qGSI.size();
-	fout.write((char *)&qSize, sizeof(qSize));
-	
-	for (int i = 0; i < qSize; i++)
-	{
-		FP_STORAGE_TYPE tVal = m_qGSI[i];
-		fout.write((char *)&tVal, sizeof(tVal));
+	nWrite = fwrite(&m_useRTPrecip, sizeof(m_useRTPrecip), 1, out);
+	if (nWrite != 1)
+		return false;
+	nWrite = fwrite(&m_pcpMin, sizeof(m_pcpMin), 1, out);
+	if (nWrite != 1)
+		return false;
+	nWrite = fwrite(&m_pcpMax, sizeof(m_pcpMax), 1, out);
+	if (nWrite != 1)
+		return false;
 
-	}
-	return true;
-}
-bool LFMCalcState::ReadState(ifstream& fin)
-{
-	fin.read((char *)&m_lastUpdateTime, sizeof(m_lastUpdateTime));
-	fin.read((char *)&m_UseVPDAvg, sizeof(m_UseVPDAvg));
-	fin.read((char *)&m_IsHerb, sizeof(m_IsHerb));
-	fin.read((char *)&m_IsAnnual, sizeof(m_IsAnnual));
-	fin.read((char *)&m_LFIdaysAvg, sizeof(m_LFIdaysAvg));
-	fin.read((char *)&m_Lat, sizeof(m_Lat));
-	fin.read((char *)&m_TminMin, sizeof(m_TminMin));
-	fin.read((char *)&m_TminMax, sizeof(m_TminMax));
-	fin.read((char *)&m_VPDMin, sizeof(m_VPDMin));
-	fin.read((char *)&m_VPDMax, sizeof(m_VPDMax));
-	fin.read((char *)&m_DaylenMin, sizeof(m_DaylenMin));
-	fin.read((char *)&m_DaylenMax, sizeof(m_DaylenMax));
-	fin.read((char *)&m_MaxGSI, sizeof(m_MaxGSI));
-	fin.read((char *)&m_GreenupThreshold, sizeof(m_GreenupThreshold));
-	fin.read((char *)&m_MaxLFMVal, sizeof(m_MaxLFMVal));
-	fin.read((char *)&m_MinLFMVal, sizeof(m_MinLFMVal));
-	fin.read((char *)&m_Slope, sizeof(m_Slope));
-	fin.read((char *)&m_Intercept, sizeof(m_Intercept));
-	fin.read((char *)&m_hasGreenedUpThisYear, sizeof(m_hasGreenedUpThisYear));
-	fin.read((char *)&m_hasExceeded120ThisYear, sizeof(m_hasExceeded120ThisYear));
-	fin.read((char *)&m_canIncreaseHerb, sizeof(m_canIncreaseHerb));
-	fin.read((char *)&lastHerbFM, sizeof(lastHerbFM));
-	short qSize = m_qGSI.size();
-	fin.read((char *)&qSize, sizeof(qSize));
-	
-	for (int i = 0; i < qSize; i++)
-	{
-		FP_STORAGE_TYPE tVal = m_qGSI[i];
-		fin.read((char *)&tVal, sizeof(tVal));
-
-	}
 	return true;
 }
