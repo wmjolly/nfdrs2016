@@ -118,9 +118,9 @@ void NFDR2016Calc::Init(double inLat, char iFuelModel, int inSlopeClass, double 
 	GsiFM.Initialize(Lat, true, isAnnual);
 	HerbFM.Initialize(Lat, true, isAnnual);                           // Live Herb FM model init
 	WoodyFM.Initialize(Lat, false, false);                        // Live Woody FM model init
-	GsiFM.SetLFMParameters(GsiFM.GetMaxGSI(), GsiFM.GetGreenupThreshold(), 30, 250);
-	HerbFM.SetLFMParameters(HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold(), 30, 250);
-	WoodyFM.SetLFMParameters(WoodyFM.GetMaxGSI(), WoodyFM.GetGreenupThreshold(), 60, 200);
+	GsiFM.SetLFMParameters(GsiFM.GetMaxGSI(), GsiFM.GetGreenupThreshold(), GsiFM.GetMinLFMVal(), GsiFM.GetMaxLFMVal());
+	HerbFM.SetLFMParameters(HerbFM.GetMaxGSI(), HerbFM.GetGreenupThreshold(), HerbFM.GetMinLFMVal(), HerbFM.GetMaxLFMVal());
+	WoodyFM.SetLFMParameters(WoodyFM.GetMaxGSI(), WoodyFM.GetGreenupThreshold(), WoodyFM.GetMinLFMVal(), WoodyFM.GetMaxLFMVal());
 
 	// Initialize the dead fuel moisture models
 	OneHourFM.initializeParameters(0.2, "One Hour");             // 1hr Dead FM model init
@@ -147,8 +147,8 @@ void NFDR2016Calc::Init(double inLat, char iFuelModel, int inSlopeClass, double 
 	YKBDI = KBDI = StartKBDI;// = 100;                                                // Starting KBDI
 	SlopeClass = inSlopeClass;
 
-	MCHERB = 30.0;
-	MCWOOD = 60.0;
+    MCHERB = HerbFM.GetMinLFMVal();// 30.0;
+    MCWOOD = WoodyFM.GetMinLFMVal();// 60.0;
 
 	PrevYear = -999;
 	YesterdayJDay = -999;
@@ -1301,26 +1301,36 @@ void NFDR2016Calc::SetGSIParams(double MaxGSI, double GreenupThreshold, double T
 
 void NFDR2016Calc::SetHerbGSIparams(double MaxGSI, double GreenupThreshold, double TminMin /*= -2.0*/, double TminMax /*= 5.0*/ , double VPDMin /*= 900 */ , double VPDMax /*= 4100 */ ,
 	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod/* = 21U*/, bool UseVPDAvg, unsigned int nPrecipDays/* = 30*/, double rtPrecipMin /*= 0.5*/, 
-    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/)
+    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/,
+    double herbMin /*= 30.0*/, double herbMax/* = 250.0*/)
 {
 	HerbFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax, rtPrecipMin, rtPrecipMax);
 	HerbFM.SetMAPeriod(MAPeriod);
 	HerbFM.SetUseVPDAvg(UseVPDAvg);
-	HerbFM.SetLFMParameters(MaxGSI, GreenupThreshold, 30, 250);
+	HerbFM.SetLFMParameters(MaxGSI, GreenupThreshold, herbMin, herbMax);
 	HerbFM.SetNumPrecipDays(nPrecipDays);
     HerbFM.SetUseRTPrecip(UseRTPrecip);
+    if (MCHERB < herbMin)
+        MCHERB = herbMin;
+    if (MCHERB > herbMax)
+        MCHERB = herbMax;
 }
 
 void NFDR2016Calc::SetWoodyGSIparams(double MaxGSI, double GreenupThreshold, double TminMin /*= -2.0*/ , double TminMax /*= 5.0*/ , double VPDMin /*= 900 */ , double VPDMax /*= 4100 */ ,
 	double DaylMin /*= 36000*/, double DaylMax /*= 39600*/, unsigned int MAPeriod /* = 21U*/, bool UseVPDAvg, unsigned int nPrecipDays/* = 30*/, double rtPrecipMin /*= 0.5*/, 
-    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/)
+    double rtPrecipMax /*= 1.5*/, bool UseRTPrecip /* = false*/,
+    double woodyMin /*= 60.0*/, double woodyMax /*= 200.0*/)
 {
 	WoodyFM.SetLimits(TminMin, TminMax, VPDMin, VPDMax, DaylMin, DaylMax, rtPrecipMin, rtPrecipMax);
 	WoodyFM.SetMAPeriod(MAPeriod);
 	WoodyFM.SetUseVPDAvg(UseVPDAvg);
-	WoodyFM.SetLFMParameters(MaxGSI, GreenupThreshold, 60, 200);
+	WoodyFM.SetLFMParameters(MaxGSI, GreenupThreshold, woodyMin, woodyMax);
 	WoodyFM.SetNumPrecipDays(nPrecipDays);
     WoodyFM.SetUseRTPrecip(UseRTPrecip);
+    if (MCWOOD < woodyMin)
+        MCWOOD = woodyMin;
+    if (MCWOOD > woodyMax)
+        MCWOOD = woodyMax;
 }
 
 

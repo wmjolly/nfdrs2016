@@ -156,10 +156,12 @@ class NFDR2016Calc
 			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false);
 		void SetHerbGSIparams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, 
 			double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false, 
-			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false);
+			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false,
+            double herbMin = 30.0, double herbMax = 250.0);
 		void SetWoodyGSIparams(double MaxGSI, double GreenupThreshold, double TminMin = -2.0, double TminMax = 5.0, double VPDMin = 900, 
 			double VPDMax = 4100, double DaylMin = 36000, double DaylMax = 39600, unsigned int MAPeriod = 21U, bool UseVPDAvg = false, 
-			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false);
+			unsigned int nPrecipDays = 30, double rtPrecipMin = 0.5, double rtPrecipMax = 1.5, bool UseRTPrecip = false,
+            double woodyMin = 60.0, double woodyMax = 200.0);
 
 		void SetStartKBDI(int sKBDI);
 		int GetStartKBDI();
@@ -182,7 +184,7 @@ class NFDR2016Calc
 
 		double CTA;
         double Lat;
-        __int64 num_updates;
+        unsigned long num_updates;
         int NFDRSVersion;
         int YesterdayJDay;
         int SlopeClass;

@@ -952,6 +952,7 @@ time_t utctime::get_utc_timestamp(const int year, const int month,
     local_tm.tm_mday = day;
     local_tm.tm_mon = month - 1;        // Months start at 0 for tm
     local_tm.tm_year = year - 1900;     // Years since 1900 for tm
+    local_tm.tm_isdst = 0;
 
     //  Get a timestamp close to (i.e. within 24 hours of) the
     //  desired UTC time.

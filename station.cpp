@@ -49,7 +49,7 @@ Station::Station(){
     m_WoodyMaxGSI = 1.0;
     m_WoodyGreenup = 0.5;
     m_WoodyMax = 200.0;
-    m_WoodyMin = 50.0;
+    m_WoodyMin = 60.0;
     m_HerbSlope = 1.0;
     m_HerbIntercept = 1.0;
     m_WoodySlope = 1.0;
@@ -111,7 +111,7 @@ void Station::setDefaults(Station *defaultStation)
     m_WoodyMaxGSI = 1.0;
     m_WoodyGreenup = 0.5;
     m_WoodyMax = 200.0;
-    m_WoodyMin = 50.0;
+    m_WoodyMin = 60.0;
     m_HerbSlope = 1.0;
     m_HerbIntercept = 1.0;
     m_WoodySlope = 1.0;

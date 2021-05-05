@@ -538,7 +538,7 @@ void DeadFuelMoisture::diffusivity ( double bp )
 			c2    = 0.4657 + 0.003578 * m_t[i];
         // Lesser of nodal or fiber saturation moisture (g/g)
        // double 
-			wc;
+			//wc;
         // Reciprocal slope of the sorption isotherm
         double dhdm = 0.0;
         if ( m_w[i] < m_wsa )

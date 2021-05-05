@@ -39,14 +39,14 @@ void LiveFuelMoisture::Initialize(double Lat,bool IsHerb, bool IsAnnual = false)
     m_IsHerb = IsHerb;
     m_IsAnnual = IsAnnual;
 
-    if(m_IsHerb)
+    /*if(m_IsHerb)
     {
         SetLFMParameters(1.0,0.5,30,250);
     }
     else
     {
        SetLFMParameters(1.0,0.5,60,200);
-    }
+    }*/
 	//if (iGSI.size() > 0)
 	//	iGSI.clear();
 	while (qGSI.size() > 0)
@@ -91,7 +91,7 @@ void LiveFuelMoisture::Update(double TempF, double MaxTempF, double MinTempF, do
         days = secs / 86400;//86400 seconds per day
 		if (days > 1)//gap, deal with it by removing extra values
 		{
-			gDays = min(days - 1, qGSI.size());
+			gDays = min(days - 1, (int)qGSI.size());
 			for (int p = 0; p < gDays; p++)
 				qGSI.pop_front();
 		}
