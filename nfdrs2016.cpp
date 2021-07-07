@@ -17,6 +17,7 @@
 #include "nfdrs2016.h"
 #include "station.h"
 #include <time.h>
+#include "utctime.h"
 #include "NFDR2016CalcState.h"
 
 #define SNOWDAYS_TRIGGER 5
@@ -545,7 +546,7 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, double Temp, d
         qHourlyPrecip.pop_front();
     //deques OK, now figure Min/Max's and 24 hour pcp
     double MinRH = NORECORD, MinTemp = NORECORD, MaxTemp = NORECORD, pcp24 = 0.0;
-    for (auto it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
     {
         if ((*it) != NORECORD)
         {
@@ -559,7 +560,7 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, double Temp, d
                 MinTemp = min(MinTemp, *it);
         }
     }
-    for (auto it = qHourlyRH.begin(); it != qHourlyRH.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyRH.begin(); it != qHourlyRH.end(); ++it)
     {
         if ((*it) != NORECORD)
         {
@@ -569,7 +570,7 @@ void NFDR2016Calc::Update(int Year, int Month, int Day, int Hour, double Temp, d
                 MinRH = min(MinRH, *it);
         }
     }
-    for (auto it = qHourlyPrecip.begin(); it != qHourlyPrecip.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyPrecip.begin(); it != qHourlyPrecip.end(); ++it)
     {
         if (*it != NORECORD)
             pcp24 += *it;
@@ -1440,7 +1441,7 @@ bool NFDR2016Calc::LoadState(NFDR2016CalcState state)
 double NFDR2016Calc::GetMinTemp()
 {
     double minTemp = NORECORD;
-    for (auto it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
     {
         if ((*it) != NORECORD)
         {
@@ -1456,7 +1457,7 @@ double NFDR2016Calc::GetMinTemp()
 double NFDR2016Calc::GetMaxTemp()
 {
     double maxTemp = NORECORD;
-    for (auto it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyTemp.begin(); it != qHourlyTemp.end(); ++it)
     {
         if ((*it) != NORECORD)
         {
@@ -1471,7 +1472,7 @@ double NFDR2016Calc::GetMaxTemp()
 double NFDR2016Calc::GetMinRH()
 {
     double minRH = NORECORD;
-    for (auto it = qHourlyRH.begin(); it != qHourlyRH.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyRH.begin(); it != qHourlyRH.end(); ++it)
     {
         if ((*it) != NORECORD)
         {
@@ -1486,7 +1487,7 @@ double NFDR2016Calc::GetMinRH()
 double NFDR2016Calc::GetPcp24()
 {
     double pcp24 = 0.0;
-    for (auto it = qHourlyPrecip.begin(); it != qHourlyPrecip.end(); ++it)
+    for (std::deque<double>::iterator it = qHourlyPrecip.begin(); it != qHourlyPrecip.end(); ++it)
     {
         if (*it != NORECORD)
             pcp24 += *it;

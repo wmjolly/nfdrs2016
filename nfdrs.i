@@ -2,6 +2,9 @@
 
 %module nfdrs
 %{
+#include "nfdrs2016.h"
+%}
+%{
 #include "deadfuelmoisture.h"
 %}
 %{
@@ -19,9 +22,7 @@
 %{
 #include "station.h"
 %}
-%{
-#include "nfdrs2016.h"
-%}
+
 
 %include typemaps.i
 %include "std_vector.i"
@@ -68,4 +69,4 @@ typedef long time_t;
 %include "LFMCalcState.h"
 %include "NFDR2016CalcState.h"
 %include "station.h"
-%include "nfdrs2016.h
+%include "nfdrs2016.h"

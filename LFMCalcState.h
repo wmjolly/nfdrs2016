@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include "NFDR2016StateSizes.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 class LFMCalcState
 {

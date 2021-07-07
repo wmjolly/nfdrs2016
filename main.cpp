@@ -224,7 +224,7 @@ int main(int argc,char * argv[])
 			}
 			else
 			{
-				nfdrs2016loop.Init(MyLat,'Y',1,MyAnnPrcp,1,1,0);
+				nfdrs2016loop.Init(MyLat,'Y',1,MyAnnPrcp,1,1,0,100,13);
 			}
 			
 			

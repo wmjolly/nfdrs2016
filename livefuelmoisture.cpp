@@ -28,8 +28,10 @@
 #include<numeric>
 
 #include "livefuelmoisture.h"
-#include <atlbase.h>
+//#include <atlbase.h>
 #include <ctime>
+#include <stdio.h>
+#include <stdlib.h>
 
 using namespace std;
 

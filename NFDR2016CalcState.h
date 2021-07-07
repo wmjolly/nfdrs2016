@@ -34,7 +34,7 @@ public:
 
 	//local variables
 	FP_STORAGE_TYPE m_Lat;
-	__int64 m_num_updates;
+	long m_num_updates;
 	short m_YesterdayJDay;
 	char m_SlopeClass;
 	char m_FuelModel;

@@ -175,8 +175,8 @@ class NFDR2016Calc
 		bool ReadState(string fileName);
 		bool SaveState(string fileName);
 		bool LoadState(NFDR2016CalcState state);
-		static const int nPrecipQueueDays = 90;
-        static const int nHoursPerDay = 24;
+	 const int nPrecipQueueDays = 90;
+         const int nHoursPerDay = 24;
         double GetMinTemp();
         double GetMaxTemp();
         double GetMinRH();

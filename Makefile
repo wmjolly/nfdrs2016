@@ -1,20 +1,22 @@
 CC=g++
-CFLAGS=-g -fopenmp
+CFLAGS=-g -fopenmp -I/usr/local/include 
 DEPS = nfdrs2016.h
 TARGET = nfdrs2016
 
 %.o: %.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-nfdrs2016: main.cpp nfdrs2016.o  deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o
-	$(CC) $(CFLAGS) main.cpp nfdrs2016.o deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o -o $@ -I/usr/lib -lnetcdf_c++4
+nfdrs2016: main.cpp nfdrs2016.o utctime.o deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o
+	$(CC) $(CFLAGS) main.cpp nfdrs2016.o utctime.o deadfuelmoisture.o livefuelmoisture.o DFMCalcState.o LFMCalcState.o NFDR2016CalcState.o -o $@ -L/usr/local/lib -I/usr/local/include -lnetcdf_c++4 -lnetcdf
 
-nfdrs2016.o: nfdrs2016.cpp nfdrs2016.h
+nfdrs2016.o: nfdrs2016.cpp nfdrs2016.h utctime.h
 	$(CC) $(CFLAGS) -c nfdrs2016.cpp
 
 deadfuelmoisture.o: deadfuelmoisture.cpp deadfuelmoisture.h
 	$(CC) $(CFLAGS) -c deadfuelmoisture.cpp
 
+utctime.o: utctime.cpp utctime.h
+	$(CC) $(CFLAGS) -c utctime.cpp
 
 livefuelmoisture.o: livefuelmoisture.cpp livefuelmoisture.h
 	$(CC) $(CFLAGS) -c livefuelmoisture.cpp
